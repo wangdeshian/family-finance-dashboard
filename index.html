@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家庭財務紀錄儀表板 - 進階明細版</title>
+    <title>家庭財務紀錄儀表板 - 全動態管理版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 基礎全域設定 */
@@ -12,7 +12,6 @@
         
         /* 卡片共用樣式 */
         .card { background-color: #ffffff; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 25px; box-sizing: border-box; transition: transform 0.2s; }
-        .card:hover { transform: translateY(-2px); }
         .card-title { font-size: 1.3rem; font-weight: bold; color: #2c3e50; margin-bottom: 15px; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center; }
         .amount { font-size: 2rem; font-weight: bold; color: #2c3e50; text-align: center; }
         
@@ -25,7 +24,7 @@
         .submit-btn { background-color: #f39c12; color: white; border: none; padding: 12px 20px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.3s; }
         .submit-btn:hover { background-color: #e67e22; }
 
-        /* 明細列表樣式 (新增) */
+        /* 明細列表樣式 */
         .stat-list { text-align: left; margin-top: 15px; font-size: 0.95rem; }
         .stat-header { font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 2px solid #eee; padding-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
         .stat-item { display: flex; justify-content: space-between; margin-bottom: 6px; color: #555; }
@@ -33,10 +32,17 @@
         .text-expense { color: #e74c3c; }
         .sub-total { font-size: 0.85rem; background: #f4f4f4; padding: 2px 8px; border-radius: 10px; color: #333; }
 
+        /* 歷史紀錄表格樣式 */
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9rem; }
+        .history-table th, .history-table td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+        .history-table th { background-color: #f9f9f9; color: #555; font-weight: bold; }
+        .history-table tr:hover { background-color: #fdfdfd; }
+        .btn-action { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-right: 5px; font-weight: bold; }
+        .btn-edit { background-color: #3498db; color: white; }
+        .btn-delete { background-color: #e74c3c; color: white; }
+
         /* 頂部：家庭共同支出 */
         .top-section { border-left: 8px solid #4CAF50; }
-
-        /* 中間：成員個別支出 */
         .middle-section { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         .member-dad { border-top: 5px solid #3498db; }
         .member-mom { border-top: 5px solid #e74c3c; }
@@ -49,10 +55,11 @@
         .balance-card { text-align: center; border-left: 8px solid #1abc9c; height: 100%; display: flex; flex-direction: column; justify-content: center; }
         .balance-amount { font-size: 3.5rem; font-weight: bold; margin-top: 10px; transition: color 0.3s; }
 
-        /* RWD 響應式設計 */
         @media (max-width: 900px) {
             .middle-section { grid-template-columns: repeat(2, 1fr); }
             .bottom-section { grid-template-columns: 1fr; }
+            .history-table { font-size: 0.8rem; }
+            .btn-action { padding: 4px 8px; }
         }
         @media (max-width: 500px) {
             .middle-section { grid-template-columns: 1fr; }
@@ -89,25 +96,16 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>明細分類</label>
-                        <select id="inputCategory" required>
-                            <optgroup label="收入項目">
-                                <option value="薪資">薪資</option>
-                                <option value="股票">股票</option>
-                                <option value="投資">投資</option>
-                            </optgroup>
-                            <optgroup label="個人支出項目">
-                                <option value="信用卡">信用卡</option>
-                                <option value="貸款">貸款</option>
-                                <option value="孝親費">孝親費</option>
-                                <option value="個人其他">個人其他</option>
-                            </optgroup>
-                            <optgroup label="共同支出項目">
-                                <option value="房租">房租</option>
-                                <option value="水電">水電</option>
-                                <option value="共同其他">共同其他</option>
-                            </optgroup>
-                        </select>
+                        <label>明細分類 (可直接打字新增)</label>
+                        <input type="text" id="inputCategory" list="categoryOptions" placeholder="請選擇或輸入新項目" required>
+                        <datalist id="categoryOptions">
+                            <option value="薪資"></option>
+                            <option value="股票"></option>
+                            <option value="信用卡"></option>
+                            <option value="房租"></option>
+                            <option value="水電"></option>
+                            <option value="孝親費"></option>
+                        </datalist>
                     </div>
                     <div class="form-group">
                         <label>金額 (NT$)</label>
@@ -156,13 +154,35 @@
             </div>
         </div>
 
+        <div class="card" style="margin-top: 10px;">
+            <h2 class="card-title" style="text-align: left;">本月歷史紀錄 (可修改/刪除)</h2>
+            <div style="overflow-x: auto;">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            <th>類型</th>
+                            <th>成員</th>
+                            <th>分類</th>
+                            <th>金額</th>
+                            <th>備註</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr><td colspan="7" style="text-align:center;">載入中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
-
+        // 核心升級：引入 doc, updateDoc, deleteDoc 以支援修改與刪除
+        import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        
         // ⚠️ 請在此處貼回您的 Firebase 設定碼 ⚠️
         const firebaseConfig = {
             apiKey: "AIzaSyDiatcf67zBQFDe47O0zQqwk9blNFP3Y7Q",
@@ -175,24 +195,16 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
         const db = getFirestore(app); 
-        
         document.getElementById('inputDate').valueAsDate = new Date();
 
-        // 更新圓餅圖分類標籤
+        // 圓餅圖初始化 (分類與顏色將由系統動態生成)
         let pieChart;
         const ctx = document.getElementById('expensePieChart').getContext('2d');
         const initChart = () => {
             pieChart = new Chart(ctx, {
                 type: 'pie',
-                data: {
-                    labels: ['房租', '水電', '信用卡', '貸款', '孝親費', '其他花費'],
-                    datasets: [{
-                        data: [0, 0, 0, 0, 0, 0],
-                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#c9cbcf']
-                    }]
-                },
+                data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] },
                 options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
             });
         };
@@ -204,29 +216,37 @@
             const date = document.getElementById('inputDate').value;
             const type = document.getElementById('inputType').value;
             const member = document.getElementById('inputMember').value;
-            const category = document.getElementById('inputCategory').value;
+            const category = document.getElementById('inputCategory').value.trim(); // 取得自訂分類
             const amount = Number(document.getElementById('inputAmount').value);
             const desc = document.getElementById('inputDesc').value;
+
+            if(!category) return alert("分類不能為空！");
 
             try {
                 await addDoc(collection(db, "expenses"), { date, type, member, category, amount, description: desc, timestamp: new Date() });
                 document.getElementById('inputAmount').value = ''; 
                 document.getElementById('inputDesc').value = ''; 
+                document.getElementById('inputCategory').value = ''; 
             } catch (error) {
-                console.error("寫入錯誤: ", error);
                 alert('新增失敗。請確認 Firebase 權限設定。');
             }
         });
 
-        // 建立空的成員資料結構模型
-        const createEmptyMember = () => ({
-            收入: { '薪資': 0, '股票': 0, '投資': 0, total: 0 },
-            支出: { '信用卡': 0, '貸款': 0, '孝親費': 0, '個人其他': 0, total: 0 }
-        });
+        // 輔助函數：動態渲染項目列表 HTML
+        const renderDynamicItems = (itemsObj) => {
+            let html = '';
+            for (const [key, val] of Object.entries(itemsObj)) {
+                if (key !== 'total' && val > 0) {
+                    html += `<div class="stat-item"><span>${key}：</span><span>${val.toLocaleString()}</span></div>`;
+                }
+            }
+            return html || '<div class="stat-item" style="color:#aaa;">目前無紀錄</div>';
+        };
 
         // 即時監聽與核心計算邏輯
         const setupRealtimeListener = () => {
-            const q = query(collection(db, "expenses"));
+            // 依照時間排序抓取資料
+            const q = query(collection(db, "expenses"), orderBy("date", "desc"), orderBy("timestamp", "desc"));
             
             onSnapshot(q, (snapshot) => {
                 const currentMonth = new Date().toISOString().slice(0, 7); 
@@ -234,78 +254,80 @@
                 let totalIncome = 0;
                 let totalExpense = 0;
 
+                // 動態資料結構
                 let membersData = {
-                    '爸爸': createEmptyMember(),
-                    '媽媽': createEmptyMember(),
-                    '姐姐': createEmptyMember(),
-                    '弟弟': createEmptyMember()
+                    '爸爸': { 收入: { total: 0 }, 支出: { total: 0 } },
+                    '媽媽': { 收入: { total: 0 }, 支出: { total: 0 } },
+                    '姐姐': { 收入: { total: 0 }, 支出: { total: 0 } },
+                    '弟弟': { 收入: { total: 0 }, 支出: { total: 0 } }
                 };
+                let commonData = { total: 0 };
+                let pieData = {};
                 
-                let commonData = { '房租': 0, '水電': 0, '共同其他': 0, total: 0 };
-                let pieData = { '房租': 0, '水電': 0, '信用卡': 0, '貸款': 0, '孝親費': 0, '其他': 0 };
+                let historyHtml = ''; // 歷史紀錄表格的 HTML
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     if (data.date && data.date.startsWith(currentMonth)) {
                         
+                        // 1. 產生歷史紀錄表格 (掛載 doc.id 供修改刪除使用)
+                        const textColor = data.type === '收入' ? '#1abc9c' : '#e74c3c';
+                        historyHtml += `
+                            <tr>
+                                <td>${data.date}</td>
+                                <td style="color:${textColor}; font-weight:bold;">${data.type}</td>
+                                <td>${data.member}</td>
+                                <td>${data.category}</td>
+                                <td>NT$ ${data.amount.toLocaleString()}</td>
+                                <td>${data.description || '-'}</td>
+                                <td>
+                                    <button class="btn-action btn-edit" data-id="${doc.id}" data-amount="${data.amount}">修改金額</button>
+                                    <button class="btn-action btn-delete" data-id="${doc.id}">刪除</button>
+                                </td>
+                            </tr>
+                        `;
+
+                        // 2. 累加動態分類金額
                         if (data.type === '收入') {
                             totalIncome += data.amount;
                             if (membersData[data.member]) {
                                 membersData[data.member].收入.total += data.amount;
-                                // 若分類存在則加入，否則歸為其他收入
-                                if (membersData[data.member].收入[data.category] !== undefined) {
-                                    membersData[data.member].收入[data.category] += data.amount;
-                                }
+                                membersData[data.member].收入[data.category] = (membersData[data.member].收入[data.category] || 0) + data.amount;
                             }
                         } else {
                             totalExpense += data.amount;
-                            
-                            // 處理共同支出
                             if (data.member === '共同支出') {
                                 commonData.total += data.amount;
-                                if (commonData[data.category] !== undefined) {
-                                    commonData[data.category] += data.amount;
-                                    if(pieData[data.category] !== undefined) pieData[data.category] += data.amount;
-                                } else {
-                                    commonData['共同其他'] += data.amount;
-                                    pieData['其他'] += data.amount;
-                                }
-                            } 
-                            // 處理個人支出
-                            else if (membersData[data.member]) {
+                                commonData[data.category] = (commonData[data.category] || 0) + data.amount;
+                            } else if (membersData[data.member]) {
                                 membersData[data.member].支出.total += data.amount;
-                                if (membersData[data.member].支出[data.category] !== undefined) {
-                                    membersData[data.member].支出[data.category] += data.amount;
-                                    if(pieData[data.category] !== undefined) pieData[data.category] += data.amount;
-                                } else {
-                                    membersData[data.member].支出['個人其他'] += data.amount;
-                                    pieData['其他'] += data.amount;
-                                }
+                                membersData[data.member].支出[data.category] = (membersData[data.member].支出[data.category] || 0) + data.amount;
                             }
+                            // 收集圓餅圖資料
+                            pieData[data.category] = (pieData[data.category] || 0) + data.amount;
                         }
                     }
                 });
 
-                // --- 渲染畫面區塊 ---
-                
-                // 1. 渲染總結餘
+                // 更新歷史表格
+                document.getElementById('historyTableBody').innerHTML = historyHtml || '<tr><td colspan="7" style="text-align:center;">本月尚無紀錄</td></tr>';
+
+                // 渲染總結餘
                 const currentBalance = totalIncome - totalExpense;
                 const balanceElement = document.getElementById('currentBalance');
                 balanceElement.innerText = `NT$ ${currentBalance.toLocaleString()}`;
                 balanceElement.style.color = currentBalance < 0 ? '#e74c3c' : '#1abc9c';
 
-                // 2. 渲染共同支出卡片
+                // 渲染共同支出 (全動態)
                 document.getElementById('commonCardContent').innerHTML = `
                     <h2 class="card-title">本月家庭共同支出</h2>
                     <div class="amount">NT$ ${commonData.total.toLocaleString()}</div>
                     <div class="stat-list" style="max-width: 400px; margin: 20px auto 0;">
-                        <div class="stat-item"><span>🏠 房租：</span><span>NT$ ${commonData['房租'].toLocaleString()}</span></div>
-                        <div class="stat-item"><span>💡 水電：</span><span>NT$ ${commonData['水電'].toLocaleString()}</span></div>
-                        <div class="stat-item"><span>📦 其他：</span><span>NT$ ${commonData['共同其他'].toLocaleString()}</span></div>
+                        ${renderDynamicItems(commonData)}
                     </div>
                 `;
 
-                // 3. 渲染每位成員卡片
+                // 渲染成員卡片 (全動態)
                 ['爸爸', '媽媽', '姐姐', '弟弟'].forEach(member => {
                     const data = membersData[member];
                     document.getElementById(`card-${member}`).innerHTML = `
@@ -315,32 +337,64 @@
                                 <span>▼ 收入</span>
                                 <span class="sub-total">小計: ${data.收入.total.toLocaleString()}</span>
                             </div>
-                            <div class="stat-item"><span>薪資：</span><span>${data.收入['薪資'].toLocaleString()}</span></div>
-                            <div class="stat-item"><span>股票：</span><span>${data.收入['股票'].toLocaleString()}</span></div>
-                            <div class="stat-item"><span>投資：</span><span>${data.收入['投資'].toLocaleString()}</span></div>
+                            ${renderDynamicItems(data.收入)}
                             
                             <div class="stat-header text-expense" style="margin-top:15px;">
                                 <span>▼ 支出</span>
                                 <span class="sub-total">小計: ${data.支出.total.toLocaleString()}</span>
                             </div>
-                            <div class="stat-item"><span>信用卡：</span><span>${data.支出['信用卡'].toLocaleString()}</span></div>
-                            <div class="stat-item"><span>貸款：</span><span>${data.支出['貸款'].toLocaleString()}</span></div>
-                            <div class="stat-item"><span>孝親費：</span><span>${data.支出['孝親費'].toLocaleString()}</span></div>
-                            <div class="stat-item"><span>其他：</span><span>${data.支出['個人其他'].toLocaleString()}</span></div>
+                            ${renderDynamicItems(data.支出)}
                         </div>
                     `;
                 });
 
-                // 4. 更新圓餅圖
-                pieChart.data.datasets[0].data = [
-                    pieData['房租'], pieData['水電'], pieData['信用卡'], 
-                    pieData['貸款'], pieData['孝親費'], pieData['其他']
-                ];
+                // 更新全動態圓餅圖
+                const pieLabels = Object.keys(pieData);
+                const pieValues = Object.values(pieData);
+                const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#8e44ad', '#2ecc71', '#d35400'];
+                
+                pieChart.data.labels = pieLabels;
+                pieChart.data.datasets[0].data = pieValues;
+                pieChart.data.datasets[0].backgroundColor = colors.slice(0, pieLabels.length);
                 pieChart.update();
             });
         };
 
         setupRealtimeListener();
+
+        // 核心升級：監聽表格內的修改與刪除按鈕 (事件代理)
+        document.getElementById('historyTableBody').addEventListener('click', async (e) => {
+            const target = e.target;
+            const docId = target.getAttribute('data-id');
+
+            // 處理刪除
+            if (target.classList.contains('btn-delete')) {
+                if (confirm('確定要刪除這筆紀錄嗎？刪除後無法復原喔！')) {
+                    try {
+                        await deleteDoc(doc(db, "expenses", docId));
+                    } catch (error) {
+                        alert('刪除失敗');
+                    }
+                }
+            }
+
+            // 處理修改金額
+            if (target.classList.contains('btn-edit')) {
+                const oldAmount = target.getAttribute('data-amount');
+                const newAmount = prompt('請輸入正確的金額：', oldAmount);
+                
+                if (newAmount !== null && newAmount.trim() !== '' && !isNaN(newAmount)) {
+                    try {
+                        await updateDoc(doc(db, "expenses", docId), { 
+                            amount: Number(newAmount) 
+                        });
+                    } catch (error) {
+                        alert('修改失敗');
+                    }
+                }
+            }
+        });
+
     </script>
 </body>
 </html>
