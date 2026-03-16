@@ -7,121 +7,45 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 基礎全域設定 */
-        body {
-            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-            background-color: #f4f7f6;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-            display: flex;
-            justify-content: center;
-        }
-
-        .dashboard-container {
-            width: 100%;
-            max-width: 1000px; /* 限制最大寬度，保持版面集中 */
-            display: flex;
-            flex-direction: column;
-            gap: 30px; /* 各區塊之間的間距 */
-        }
-
-        /* 卡片共用樣式：白底、圓角、陰影 */
-        .card {
-            background-color: #ffffff;
-            border-radius: 15px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-            padding: 25px;
-            box-sizing: border-box;
-            transition: transform 0.2s;
-        }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; display: flex; justify-content: center; }
+        .dashboard-container { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 30px; }
         
-        .card:hover {
-            transform: translateY(-2px);
-        }
-
-        .card-title {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #555;
-            margin-bottom: 15px;
-            margin-top: 0;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-        }
-
-        .amount {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #2c3e50;
-        }
+        /* 卡片共用樣式 */
+        .card { background-color: #ffffff; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 25px; box-sizing: border-box; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+        .card-title { font-size: 1.2rem; font-weight: bold; color: #555; margin-bottom: 15px; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .amount { font-size: 2rem; font-weight: bold; color: #2c3e50; }
+        
+        /* 記帳表單樣式 */
+        .form-section { border-left: 8px solid #f39c12; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; color: #666; }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        .submit-btn { background-color: #f39c12; color: white; border: none; padding: 12px 20px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.3s; }
+        .submit-btn:hover { background-color: #e67e22; }
 
         /* 頂部：家庭共同支出 */
-        .top-section {
-            width: 100%;
-            text-align: center;
-            border-left: 8px solid #4CAF50; /* 加上顏色飾條增添質感 */
-        }
+        .top-section { text-align: center; border-left: 8px solid #4CAF50; }
 
-        /* 中間：四位家庭成員的支出 */
-        .middle-section {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 切成均等的四個欄位 */
-            gap: 20px;
-        }
-
-        .member-card {
-            text-align: center;
-        }
-        
-        /* 為每個成員加上不同的顏色飾條 */
+        /* 中間：成員個別支出 */
+        .middle-section { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .member-card { text-align: center; }
         .member-dad { border-top: 5px solid #3498db; }
         .member-mom { border-top: 5px solid #e74c3c; }
         .member-sister { border-top: 5px solid #f1c40f; }
         .member-brother { border-top: 5px solid #9b59b6; }
 
-        /* 底部：圓餅圖與結餘 */
-        .bottom-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* 切成左右兩半 */
-            gap: 20px;
-            align-items: center;
-        }
+        /* 底部：圖表與結餘 */
+        .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+        .chart-container { width: 100%; max-width: 350px; margin: 0 auto; }
+        .balance-card { text-align: center; border-left: 8px solid #1abc9c; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+        .balance-amount { font-size: 3.5rem; color: #1abc9c; margin-top: 10px; }
 
-        .chart-container {
-            width: 100%;
-            max-width: 350px;
-            margin: 0 auto;
-        }
-
-        .balance-card {
-            text-align: center;
-            border-left: 8px solid #1abc9c;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-
-        .balance-amount {
-            font-size: 3.5rem;
-            color: #1abc9c;
-            margin-top: 10px;
-        }
-
-        /* RWD 響應式設計：在手機版時改為直排 */
+        /* RWD 響應式設計 */
         @media (max-width: 768px) {
-            .middle-section {
-                grid-template-columns: repeat(2, 1fr); /* 平板變成 2x2 */
-            }
-            .bottom-section {
-                grid-template-columns: 1fr; /* 底部變上下排 */
-            }
-        }
-
-        @media (max-width: 480px) {
-            .middle-section {
-                grid-template-columns: 1fr; /* 手機變成全直排 */
-            }
+            .middle-section { grid-template-columns: repeat(2, 1fr); }
+            .bottom-section { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -129,33 +53,74 @@
 
     <div class="dashboard-container">
         
+        <div class="card form-section">
+            <h2 class="card-title">新增本月流水帳</h2>
+            <form id="expenseForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="inputDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>歸屬成員</label>
+                        <select id="inputMember" required>
+                            <option value="共同支出">共同支出</option>
+                            <option value="爸爸">爸爸</option>
+                            <option value="媽媽">媽媽</option>
+                            <option value="姐姐">姐姐</option>
+                            <option value="弟弟">弟弟</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>支出分類</label>
+                        <select id="inputCategory" required>
+                            <option value="食">食 (餐飲)</option>
+                            <option value="衣">衣 (服飾)</option>
+                            <option value="住">住 (房租/水電)</option>
+                            <option value="行">行 (交通)</option>
+                            <option value="育樂">育樂 (休閒)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>金額 (NT$)</label>
+                        <input type="number" id="inputAmount" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>備註事項</label>
+                        <input type="text" id="inputDesc" placeholder="例如：全家晚餐">
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">新增紀錄</button>
+            </form>
+        </div>
+
         <div class="card top-section">
-            <h2 class="card-title">家庭共同支出</h2>
-            <div class="amount">NT$ 45,000</div>
+            <h2 class="card-title">本月家庭共同支出</h2>
+            <div class="amount" id="totalCommon">NT$ 0</div>
         </div>
 
         <div class="middle-section">
             <div class="card member-card member-dad">
                 <h3 class="card-title">爸爸</h3>
-                <div class="amount">NT$ 12,000</div>
+                <div class="amount" id="totalDad">NT$ 0</div>
             </div>
             <div class="card member-card member-mom">
                 <h3 class="card-title">媽媽</h3>
-                <div class="amount">NT$ 15,000</div>
+                <div class="amount" id="totalMom">NT$ 0</div>
             </div>
             <div class="card member-card member-sister">
                 <h3 class="card-title">姐姐</h3>
-                <div class="amount">NT$ 8,000</div>
+                <div class="amount" id="totalSister">NT$ 0</div>
             </div>
             <div class="card member-card member-brother">
                 <h3 class="card-title">弟弟</h3>
-                <div class="amount">NT$ 5,000</div>
+                <div class="amount" id="totalBrother">NT$ 0</div>
             </div>
         </div>
 
         <div class="bottom-section">
             <div class="card">
-                <h2 class="card-title text-center">支出分類圓餅圖</h2>
+                <h2 class="card-title text-center" style="text-align: center;">本月支出分類圓餅圖</h2>
                 <div class="chart-container">
                     <canvas id="expensePieChart"></canvas>
                 </div>
@@ -163,48 +128,119 @@
             
             <div class="card balance-card">
                 <h2 class="card-title">本月總結餘</h2>
-                <div class="balance-amount">NT$ 35,000</div>
+                <div class="balance-amount">請設定收入</div>
             </div>
         </div>
 
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            const ctx = document.getElementById('expensePieChart').getContext('2d');
-            
-            // 建立圓餅圖
-            new Chart(ctx, {
-                type: 'pie', // 指定圖表類型為圓餅圖
+    <script type="module">
+        // 1. 透過 CDN 引入 Firebase 模組
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // 為了確保不報錯，我們也把您原本程式碼中的 analytics 載入，雖然目前這個應用程式主要用到 Firestore
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
+
+        // 2. 這是您專屬的 Firebase 設定碼
+        const firebaseConfig = {
+            apiKey: "AIzaSyDiatcf67zBQFDe47O0zQqwk9blNFP3Y7Q",
+            authDomain: "family-finance-f4077.firebaseapp.com",
+            projectId: "family-finance-f4077",
+            storageBucket: "family-finance-f4077.firebasestorage.app",
+            messagingSenderId: "533199869020",
+            appId: "1:533199869020:web:ea1e55d11f2c643cd44299",
+            measurementId: "G-1WEX2WN56Q"
+        };
+
+        // 初始化 Firebase
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app); // 啟動資料庫連線
+        
+        // 將日期輸入框預設為今天
+        document.getElementById('inputDate').valueAsDate = new Date();
+
+        // 初始化 Chart.js 圓餅圖
+        let pieChart;
+        const ctx = document.getElementById('expensePieChart').getContext('2d');
+        const initChart = () => {
+            pieChart = new Chart(ctx, {
+                type: 'pie',
                 data: {
-                    labels: ['食 (餐飲)', '衣 (服飾)', '住 (房租/水電)', '行 (交通)', '育樂 (休閒)'], // 分類標籤
+                    labels: ['食', '衣', '住', '行', '育樂'],
                     datasets: [{
-                        data: [25000, 5000, 35000, 8000, 12000], // 模擬各項目的金額數據
-                        backgroundColor: [
-                            '#FF6384', // 粉紅
-                            '#36A2EB', // 藍色
-                            '#FFCE56', // 黃色
-                            '#4BC0C0', // 湖水綠
-                            '#9966FF'  // 紫色
-                        ],
-                        borderWidth: 1 // 區塊邊框寬度
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
                     }]
                 },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom', // 將圖例放在底部
-                            labels: {
-                                font: {
-                                    family: "'PingFang TC', 'Microsoft JhengHei', sans-serif"
-                                }
-                            }
-                        }
-                    }
-                }
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
             });
+        };
+        initChart();
+
+        // 3. 處理表單送出（寫入 Firebase）
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); // 阻止網頁重新載入
+            const date = document.getElementById('inputDate').value;
+            const member = document.getElementById('inputMember').value;
+            const category = document.getElementById('inputCategory').value;
+            const amount = Number(document.getElementById('inputAmount').value);
+            const desc = document.getElementById('inputDesc').value;
+
+            try {
+                // 將資料寫入名為 "expenses" 的集合中
+                await addDoc(collection(db, "expenses"), {
+                    date: date,
+                    member: member,
+                    category: category,
+                    amount: amount,
+                    description: desc,
+                    timestamp: new Date()
+                });
+                alert('新增成功！請查看下方數據與圖表是否更新。');
+                document.getElementById('inputAmount').value = ''; // 清空金額欄位
+                document.getElementById('inputDesc').value = ''; // 清空備註欄位
+            } catch (error) {
+                console.error("寫入錯誤: ", error);
+                alert('新增失敗。請確認您是否已經在 Firebase 控制台中將 Firestore 開啟為「測試模式」。');
+            }
         });
+
+        // 4. 即時監聽本月數據（從 Firebase 讀取）
+        const setupRealtimeListener = () => {
+            const q = query(collection(db, "expenses"));
+            
+            // 當資料庫有任何新增或變動時，就會自動執行這段計算
+            onSnapshot(q, (snapshot) => {
+                const currentMonth = new Date().toISOString().slice(0, 7); // 取得當月字串 (例如 "2026-03")
+                
+                let sums = { 共同支出: 0, 爸爸: 0, 媽媽: 0, 姐姐: 0, 弟弟: 0 };
+                let catSums = { '食': 0, '衣': 0, '住': 0, '行': 0, '育樂': 0 };
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    // 過濾條件：只加總日期開頭符合「當前月份」的資料
+                    if (data.date && data.date.startsWith(currentMonth)) {
+                        if (sums[data.member] !== undefined) sums[data.member] += data.amount;
+                        if (catSums[data.category] !== undefined) catSums[data.category] += data.amount;
+                    }
+                });
+
+                // 更新畫面上的金額文字
+                document.getElementById('totalCommon').innerText = `NT$ ${sums['共同支出'].toLocaleString()}`;
+                document.getElementById('totalDad').innerText = `NT$ ${sums['爸爸'].toLocaleString()}`;
+                document.getElementById('totalMom').innerText = `NT$ ${sums['媽媽'].toLocaleString()}`;
+                document.getElementById('totalSister').innerText = `NT$ ${sums['姐姐'].toLocaleString()}`;
+                document.getElementById('totalBrother').innerText = `NT$ ${sums['弟弟'].toLocaleString()}`;
+
+                // 將最新分類總計更新到圓餅圖並重新繪製
+                pieChart.data.datasets[0].data = [catSums['食'], catSums['衣'], catSums['住'], catSums['行'], catSums['育樂']];
+                pieChart.update();
+            });
+        };
+
+        // 啟動即時監聽
+        setupRealtimeListener();
     </script>
 </body>
 </html>
