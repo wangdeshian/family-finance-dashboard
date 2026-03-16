@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家庭財務紀錄儀表板 - 全動態管理版</title>
+    <title>家庭財務紀錄儀表板 - 穩定連線版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 基礎全域設定 */
@@ -41,15 +41,13 @@
         .btn-edit { background-color: #3498db; color: white; }
         .btn-delete { background-color: #e74c3c; color: white; }
 
-        /* 頂部：家庭共同支出 */
+        /* 排版配置 */
         .top-section { border-left: 8px solid #4CAF50; }
         .middle-section { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
         .member-dad { border-top: 5px solid #3498db; }
         .member-mom { border-top: 5px solid #e74c3c; }
         .member-sister { border-top: 5px solid #f1c40f; }
         .member-brother { border-top: 5px solid #9b59b6; }
-
-        /* 底部：圖表與結餘 */
         .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
         .chart-container { width: 100%; max-width: 350px; margin: 0 auto; }
         .balance-card { text-align: center; border-left: 8px solid #1abc9c; height: 100%; display: flex; flex-direction: column; justify-content: center; }
@@ -180,10 +178,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        // 核心升級：引入 doc, updateDoc, deleteDoc 以支援修改與刪除
         import { getFirestore, collection, addDoc, query, onSnapshot, doc, updateDoc, deleteDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
-        // ⚠️ 請在此處貼回您的 Firebase 設定碼 ⚠️
+        // 【已移除 Analytics，並為您填妥金鑰】
         const firebaseConfig = {
             apiKey: "AIzaSyDiatcf67zBQFDe47O0zQqwk9blNFP3Y7Q",
             authDomain: "family-finance-f4077.firebaseapp.com",
@@ -198,7 +195,7 @@
         const db = getFirestore(app); 
         document.getElementById('inputDate').valueAsDate = new Date();
 
-        // 圓餅圖初始化 (分類與顏色將由系統動態生成)
+        // 圓餅圖初始化
         let pieChart;
         const ctx = document.getElementById('expensePieChart').getContext('2d');
         const initChart = () => {
@@ -216,7 +213,7 @@
             const date = document.getElementById('inputDate').value;
             const type = document.getElementById('inputType').value;
             const member = document.getElementById('inputMember').value;
-            const category = document.getElementById('inputCategory').value.trim(); // 取得自訂分類
+            const category = document.getElementById('inputCategory').value.trim();
             const amount = Number(document.getElementById('inputAmount').value);
             const desc = document.getElementById('inputDesc').value;
 
@@ -228,11 +225,11 @@
                 document.getElementById('inputDesc').value = ''; 
                 document.getElementById('inputCategory').value = ''; 
             } catch (error) {
-                alert('新增失敗。請確認 Firebase 權限設定。');
+                alert('新增失敗。請確認 Firebase 權限設定（請見下方說明）。');
             }
         });
 
-        // 輔助函數：動態渲染項目列表 HTML
+        // 動態渲染項目列表
         const renderDynamicItems = (itemsObj) => {
             let html = '';
             for (const [key, val] of Object.entries(itemsObj)) {
@@ -245,7 +242,6 @@
 
         // 即時監聽與核心計算邏輯
         const setupRealtimeListener = () => {
-            // 依照時間排序抓取資料
             const q = query(collection(db, "expenses"), orderBy("date", "desc"), orderBy("timestamp", "desc"));
             
             onSnapshot(q, (snapshot) => {
@@ -254,7 +250,6 @@
                 let totalIncome = 0;
                 let totalExpense = 0;
 
-                // 動態資料結構
                 let membersData = {
                     '爸爸': { 收入: { total: 0 }, 支出: { total: 0 } },
                     '媽媽': { 收入: { total: 0 }, 支出: { total: 0 } },
@@ -263,14 +258,12 @@
                 };
                 let commonData = { total: 0 };
                 let pieData = {};
-                
-                let historyHtml = ''; // 歷史紀錄表格的 HTML
+                let historyHtml = ''; 
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     if (data.date && data.date.startsWith(currentMonth)) {
                         
-                        // 1. 產生歷史紀錄表格 (掛載 doc.id 供修改刪除使用)
                         const textColor = data.type === '收入' ? '#1abc9c' : '#e74c3c';
                         historyHtml += `
                             <tr>
@@ -281,13 +274,12 @@
                                 <td>NT$ ${data.amount.toLocaleString()}</td>
                                 <td>${data.description || '-'}</td>
                                 <td>
-                                    <button class="btn-action btn-edit" data-id="${doc.id}" data-amount="${data.amount}">修改金額</button>
+                                    <button class="btn-action btn-edit" data-id="${doc.id}" data-amount="${data.amount}">修改</button>
                                     <button class="btn-action btn-delete" data-id="${doc.id}">刪除</button>
                                 </td>
                             </tr>
                         `;
 
-                        // 2. 累加動態分類金額
                         if (data.type === '收入') {
                             totalIncome += data.amount;
                             if (membersData[data.member]) {
@@ -303,22 +295,18 @@
                                 membersData[data.member].支出.total += data.amount;
                                 membersData[data.member].支出[data.category] = (membersData[data.member].支出[data.category] || 0) + data.amount;
                             }
-                            // 收集圓餅圖資料
                             pieData[data.category] = (pieData[data.category] || 0) + data.amount;
                         }
                     }
                 });
 
-                // 更新歷史表格
                 document.getElementById('historyTableBody').innerHTML = historyHtml || '<tr><td colspan="7" style="text-align:center;">本月尚無紀錄</td></tr>';
 
-                // 渲染總結餘
                 const currentBalance = totalIncome - totalExpense;
                 const balanceElement = document.getElementById('currentBalance');
                 balanceElement.innerText = `NT$ ${currentBalance.toLocaleString()}`;
                 balanceElement.style.color = currentBalance < 0 ? '#e74c3c' : '#1abc9c';
 
-                // 渲染共同支出 (全動態)
                 document.getElementById('commonCardContent').innerHTML = `
                     <h2 class="card-title">本月家庭共同支出</h2>
                     <div class="amount">NT$ ${commonData.total.toLocaleString()}</div>
@@ -327,7 +315,6 @@
                     </div>
                 `;
 
-                // 渲染成員卡片 (全動態)
                 ['爸爸', '媽媽', '姐姐', '弟弟'].forEach(member => {
                     const data = membersData[member];
                     document.getElementById(`card-${member}`).innerHTML = `
@@ -348,7 +335,6 @@
                     `;
                 });
 
-                // 更新全動態圓餅圖
                 const pieLabels = Object.keys(pieData);
                 const pieValues = Object.values(pieData);
                 const colors = ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40', '#C9CBCF', '#8e44ad', '#2ecc71', '#d35400'];
@@ -357,17 +343,19 @@
                 pieChart.data.datasets[0].data = pieValues;
                 pieChart.data.datasets[0].backgroundColor = colors.slice(0, pieLabels.length);
                 pieChart.update();
+            }, (error) => {
+                console.error("Firebase 連線錯誤: ", error);
+                document.querySelectorAll('.amount').forEach(el => el.innerText = '連線失敗，請檢查權限設定');
             });
         };
 
         setupRealtimeListener();
 
-        // 核心升級：監聽表格內的修改與刪除按鈕 (事件代理)
+        // 監聽表格內的修改與刪除
         document.getElementById('historyTableBody').addEventListener('click', async (e) => {
             const target = e.target;
             const docId = target.getAttribute('data-id');
 
-            // 處理刪除
             if (target.classList.contains('btn-delete')) {
                 if (confirm('確定要刪除這筆紀錄嗎？刪除後無法復原喔！')) {
                     try {
@@ -378,7 +366,6 @@
                 }
             }
 
-            // 處理修改金額
             if (target.classList.contains('btn-edit')) {
                 const oldAmount = target.getAttribute('data-amount');
                 const newAmount = prompt('請輸入正確的金額：', oldAmount);
@@ -394,7 +381,6 @@
                 }
             }
         });
-
     </script>
 </body>
 </html>
