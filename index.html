@@ -3,47 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家庭財務紀錄儀表板 - 全功能管理版</title>
+    <title>家庭財務管理系統 - 直覺編輯版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; display: flex; justify-content: center; }
-        .dashboard-container { width: 100%; max-width: 1300px; display: flex; flex-direction: column; gap: 20px; }
+        .dashboard-container { width: 100%; max-width: 1400px; display: flex; flex-direction: column; gap: 20px; }
         
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 20px; position: relative; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 20px; position: relative; display: flex; flex-direction: column; }
         .card-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px; color: #1a73e8; }
         
-        /* 月份切換器 */
         .top-bar { background: #1a73e8; color: white; padding: 15px 25px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
-        .top-bar select { padding: 8px; border-radius: 6px; border: none; font-size: 1rem; }
+        .top-bar select { padding: 8px; border-radius: 6px; border: none; font-size: 1rem; cursor: pointer; }
 
-        /* 表單區域 */
+        /* 快速記帳表單 */
         .form-section { border-top: 5px solid #f39c12; }
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         .form-group { display: flex; flex-direction: column; font-size: 0.85rem; }
-        .form-group input, .form-group select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; margin-top: 4px; }
-        .submit-btn { background: #f39c12; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 15px; width: 100%; }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-top: 4px; }
+        .submit-btn { background: #f39c12; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 15px; width: 100%; }
 
-        /* 成員與共同支出卡片 */
-        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        /* 成員卡片佈局修正 */
+        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         .stat-header { font-weight: bold; font-size: 0.9rem; margin: 10px 0 5px; display: flex; justify-content: space-between; }
         .income-text { color: #27ae60; }
         .expense-text { color: #e74c3c; }
         
-        /* 明細項目樣式 */
-        .item-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; padding: 6px 0; border-bottom: 1px dashed #eee; }
-        .item-val { font-weight: 500; }
-        .del-btn { color: #ccc; cursor: pointer; margin-left: 8px; font-size: 0.8rem; }
+        /* 金額點擊修改樣式 */
+        .item-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem; padding: 8px 0; border-bottom: 1px dashed #eee; }
+        .editable-amt { 
+            font-weight: bold; 
+            cursor: pointer; 
+            color: #2c3e50; 
+            border-bottom: 1px solid #ccc; 
+            padding: 0 4px;
+            transition: all 0.2s;
+        }
+        .editable-amt:hover { background-color: #fff9c4; color: #f57f17; border-bottom: 1px solid #f57f17; }
+        .del-btn { color: #bbb; cursor: pointer; margin-left: 10px; font-size: 1rem; padding: 0 5px; }
         .del-btn:hover { color: #e74c3c; }
 
-        /* 卡片內新增功能 */
-        .inline-add { display: flex; gap: 5px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; }
-        .inline-add input { flex: 1; padding: 5px; font-size: 0.8rem; border: 1px solid #eee; border-radius: 4px; }
-        .inline-btn { background: #eee; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; }
-        .inline-btn:hover { background: #ddd; }
+        /* 修正卡片底部輸入框跑版 (CSS 修復重點) */
+        .inline-add { 
+            display: flex; 
+            gap: 8px; 
+            margin-top: auto; 
+            padding-top: 15px; 
+            border-top: 1px solid #eee; 
+            flex-wrap: wrap; 
+        }
+        .inline-add input[type="text"] { flex: 2; min-width: 120px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
+        .inline-add input[type="number"] { flex: 1; min-width: 80px; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
+        .inline-btn { background: #34495e; color: white; border: none; padding: 8px 15px; border-radius: 6px; font-size: 1.1rem; cursor: pointer; }
 
         .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .balance-box { text-align: center; display: flex; flex-direction: column; justify-content: center; }
-        .balance-val { font-size: 3rem; font-weight: bold; margin-top: 10px; }
+        .balance-box { text-align: center; justify-content: center; border-left: 8px solid #27ae60; }
+        .balance-val { font-size: 3.5rem; font-weight: bold; margin-top: 10px; }
 
         @media (max-width: 768px) { .middle-section { grid-template-columns: 1fr; } .bottom-section { grid-template-columns: 1fr; } }
     </style>
@@ -57,13 +71,13 @@
         </div>
 
         <div class="card form-section">
-            <div class="card-title">快速流水帳登記</div>
+            <div class="card-title">快速記帳</div>
             <form id="mainForm">
                 <div class="form-grid">
                     <div class="form-group"><label>日期</label><input type="date" id="fDate" required></div>
-                    <div class="form-group"><label>類型</label><select id="fType"><option value="支出">支出</option><option value="收入">收入</option></select></div>
+                    <div class="form-group"><label>收支</label><select id="fType"><option value="支出">支出</option><option value="收入">收入</option></select></div>
                     <div class="form-group"><label>成員</label><select id="fMember"><option value="共同支出">共同支出</option><option value="爸爸">爸爸</option><option value="媽媽">媽媽</option><option value="姐姐">姐姐</option><option value="弟弟">弟弟</option></select></div>
-                    <div class="form-group"><label>分類</label><input type="text" id="fCat" placeholder="如: 薪資, 房租" required></div>
+                    <div class="form-group"><label>分類</label><input type="text" id="fCat" placeholder="請輸入分類" required></div>
                     <div class="form-group"><label>金額</label><input type="number" id="fAmt" required></div>
                 </div>
                 <button type="submit" class="submit-btn">儲存紀錄</button>
@@ -71,16 +85,7 @@
         </div>
 
         <div class="middle-section">
-            <div class="card" style="border-top: 5px solid #27ae60;">
-                <div class="card-title">🏠 家庭共同支出 (家用)</div>
-                <div id="items-共同支出"></div>
-                <div class="inline-add">
-                    <input type="text" id="add-cat-共同支出" placeholder="新增支出項目...">
-                    <input type="number" id="add-amt-共同支出" placeholder="金額">
-                    <button class="inline-btn" onclick="quickAdd('共同支出', '支出')">+</button>
-                </div>
-            </div>
-
+            <div class="card" style="border-top: 5px solid #27ae60;"><div class="card-title">🏠 家庭共同支出 (家用)</div><div id="items-共同支出"></div><div class="inline-add"><input type="text" id="add-cat-共同支出" placeholder="新增支出項目..."><input type="number" id="add-amt-共同支出" placeholder="金額"><button class="inline-btn" onclick="quickAdd('共同支出', '支出')">+</button></div></div>
             <div class="card" style="border-top: 5px solid #3498db;"><div class="card-title">👨 爸爸</div><div id="items-爸爸"></div><div class="inline-add"><input type="text" id="add-cat-爸爸" placeholder="自訂項目..."><input type="number" id="add-amt-爸爸" placeholder="金額"><button class="inline-btn" onclick="quickAdd('爸爸', '支出')">+</button></div></div>
             <div class="card" style="border-top: 5px solid #e74c3c;"><div class="card-title">👩 媽媽</div><div id="items-媽媽"></div><div class="inline-add"><input type="text" id="add-cat-媽媽" placeholder="自訂項目..."><input type="number" id="add-amt-媽媽" placeholder="金額"><button class="inline-btn" onclick="quickAdd('媽媽', '支出')">+</button></div></div>
             <div class="card" style="border-top: 5px solid #f1c40f;"><div class="card-title">👧 姐姐</div><div id="items-姐姐"></div><div class="inline-add"><input type="text" id="add-cat-姐姐" placeholder="自訂項目..."><input type="number" id="add-amt-姐姐" placeholder="金額"><button class="inline-btn" onclick="quickAdd('姐姐', '支出')">+</button></div></div>
@@ -98,7 +103,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, doc, deleteDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, doc, deleteDoc, updateDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         
         const firebaseConfig = {
             apiKey: "AIzaSyDiatcf67zBQFDe47O0zQqwk9blNFP3Y7Q",
@@ -114,18 +119,22 @@
         const db = getFirestore(app);
         let pieChart, allData = [], currentMonth = new Date().toISOString().slice(0,7);
 
-        // 初始化圖表
         const ctx = document.getElementById('pie').getContext('2d');
         pieChart = new Chart(ctx, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#34495e'] }] } });
-
-        // 設定日期預設值
         document.getElementById('fDate').valueAsDate = new Date();
 
-        // 快速新增函數 (掛載至 window 讓 HTML 可點擊)
+        // 點擊修改金額邏輯
+        window.editAmt = async (id, oldVal) => {
+            const newVal = prompt("請輸入新的金額：", oldVal);
+            if (newVal !== null && newVal.trim() !== "" && !isNaN(newVal)) {
+                await updateDoc(doc(db, "expenses", id), { amount: Number(newVal) });
+            }
+        };
+
         window.quickAdd = async (member, type) => {
             const cat = document.getElementById(`add-cat-${member}`).value;
             const amt = document.getElementById(`add-amt-${member}`).value;
-            if(!cat || !amt) return alert("請填入名稱與金額");
+            if(!cat || !amt) return alert("請輸入項目名稱與金額");
             await addDoc(collection(db, "expenses"), {
                 date: new Date().toISOString().slice(0,10),
                 member, type, category: cat, amount: Number(amt), timestamp: new Date()
@@ -134,9 +143,8 @@
             document.getElementById(`add-amt-${member}`).value = '';
         };
 
-        window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
+        window.delItem = async (id) => { if(confirm("確定刪除這筆紀錄？")) await deleteDoc(doc(db, "expenses", id)); };
 
-        // 監聽表單
         document.getElementById('mainForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await addDoc(collection(db, "expenses"), {
@@ -150,7 +158,6 @@
             document.getElementById('fAmt').value = '';
         });
 
-        // 監聽月份切換
         document.getElementById('monthSelect').addEventListener('change', (e) => {
             currentMonth = e.target.value;
             render();
@@ -178,7 +185,6 @@
             const results = {};
             members.forEach(m => results[m] = { 收入: {}, 支出: {}, tI: 0, tE: 0 });
 
-            // 預設常態性明細項目
             const defaults = {
                 '爸爸': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
                 '媽媽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
@@ -202,31 +208,28 @@
                 }
             });
 
-            // 渲染各卡片 HTML
             members.forEach(m => {
                 let html = '';
                 const def = defaults[m] || {};
                 
-                // 處理收入區
                 if(def.收入) {
-                    html += `<div class="stat-header income-text"><span>▼ 收入明細</span></div>`;
-                    // 合併預設項目與實際項目
+                    html += `<div class="stat-header income-text"><span>▼ 收入</span></div>`;
                     const allInNames = [...new Set([...def.收入, ...Object.keys(results[m].收入)])];
                     allInNames.forEach(cat => {
                         const logs = results[m].收入[cat] || [];
                         const sum = logs.reduce((a,b)=>a+b.val, 0);
-                        html += `<div class="item-row"><span>${cat}</span><span class="item-val">${sum.toLocaleString()} ${logs.map(l => `<b class="del-btn" onclick="delItem('${l.id}')">×</b>`).join('')}</span></div>`;
+                        // 加入 editAmt 點擊事件
+                        html += `<div class="item-row"><span>${cat}</span><span><span class="editable-amt" title="點擊修改" onclick="${logs.length > 0 ? `editAmt('${logs[0].id}', ${sum})` : ''}">${sum.toLocaleString()}</span> ${logs.map(l => `<b class="del-btn" title="刪除" onclick="delItem('${l.id}')">×</b>`).join('')}</span></div>`;
                     });
                 }
 
-                // 處理支出區
                 if(def.支出) {
-                    html += `<div class="stat-header expense-text"><span>▼ 支出明細</span></div>`;
+                    html += `<div class="stat-header expense-text"><span>▼ 支出</span></div>`;
                     const allExNames = [...new Set([...def.支出, ...Object.keys(results[m].支出)])];
                     allExNames.forEach(cat => {
                         const logs = results[m].支出[cat] || [];
                         const sum = logs.reduce((a,b)=>a+b.val, 0);
-                        html += `<div class="item-row"><span>${cat}</span><span class="item-val">${sum.toLocaleString()} ${logs.map(l => `<b class="del-btn" onclick="delItem('${l.id}')">×</b>`).join('')}</span></div>`;
+                        html += `<div class="item-row"><span>${cat}</span><span><span class="editable-amt" title="點擊修改" onclick="${logs.length > 0 ? `editAmt('${logs[0].id}', ${sum})` : ''}">${sum.toLocaleString()}</span> ${logs.map(l => `<b class="del-btn" title="刪除" onclick="delItem('${l.id}')">×</b>`).join('')}</span></div>`;
                     });
                 }
                 document.getElementById(`items-${m}`).innerHTML = html;
