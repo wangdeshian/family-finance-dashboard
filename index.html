@@ -3,69 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>家庭財務管理系統 - 手機優化版</title>
+    <title>家庭財務管理系統 - 手機優化修正版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f0f2f5; margin: 0; padding: 10px; color: #333; }
+        /* 基礎行動優先設定 */
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f6f9; margin: 0; padding: 10px; color: #333; line-height: 1.4; }
         
-        /* 容器自適應 */
-        .dashboard-container { width: 100%; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
+        .dashboard-container { width: 100%; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
         
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); padding: 15px; display: flex; flex-direction: column; }
-        .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px; color: #1a73e8; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,0.05); padding: 12px; display: flex; flex-direction: column; width: 100%; overflow: hidden; }
+        .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #f0f2f5; padding-bottom: 6px; color: #1a73e8; display: flex; align-items: center; gap: 5px; }
         
-        /* 頂部導覽列：手機端加高 */
-        .top-bar { background: #34495e; color: white; padding: 12px 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        /* 頂部導覽： sticky 固定 */
+        .top-bar { background: #34495e; color: white; padding: 10px 15px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .month-nav { display: flex; align-items: center; gap: 5px; }
-        .nav-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-        .top-bar select { padding: 6px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; max-width: 120px; }
+        .nav-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 0.8rem; }
+        .top-bar select { background: #fff; color: #333; padding: 4px 8px; border-radius: 5px; border: none; font-size: 0.85rem; font-weight: bold; }
 
-        /* 快速記帳：手機端自動垂直化 */
-        .form-section { border-top: 5px solid #1a73e8; padding: 15px; }
-        .form-grid { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
-        .form-group label { font-size: 0.75rem; font-weight: bold; color: #888; }
-        .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; height: 44px; width: 100%; }
-        .submit-btn { background: #1a73e8; color: white; border: none; padding: 0 20px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1rem; height: 44px; flex: 1; min-width: 140px; }
-
-        /* 卡片區域：手機端單欄顯示 */
-        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; font-size: 0.95rem; }
-        .income-text { color: #27ae60; font-weight: bold; font-size: 0.85rem; margin-top: 12px; }
-        .expense-text { color: #e74c3c; font-weight: bold; font-size: 0.85rem; margin-top: 12px; }
+        /* 快速記帳：手機端修正 (解決撐大問題) */
+        .form-section { border-top: 4px solid #1a73e8; }
+        .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .form-group { display: flex; flex-direction: column; gap: 2px; }
+        .form-group.full-width { grid-column: span 2; }
+        .form-group label { font-size: 0.7rem; font-weight: bold; color: #888; margin-left: 2px; }
         
-        /* 金額輸入：手機端更好點擊 */
-        .inline-edit-amt { width: 90px; border: 1px solid #e0e0e0; text-align: right; font-weight: bold; background: #fdfdfd; border-radius: 6px; padding: 6px; font-size: 1rem; color: #2c3e50; }
-        .inline-edit-amt:focus { border-color: #27ae60; background: #fff; outline: none; box-shadow: 0 0 5px rgba(39,174,96,0.2); }
-        .del-btn { color: #ccc; cursor: pointer; margin-left: 12px; font-size: 1.2rem; padding: 5px; }
+        /* 統一輸入框與下拉選單高度 */
+        .form-group input, .form-group select { 
+            padding: 8px; border: 1px solid #ddd; border-radius: 6px; 
+            font-size: 0.9rem; height: 38px; width: 100%; 
+            background-color: #fcfcfc; -webkit-appearance: none;
+        }
+        .submit-btn { 
+            background: #1a73e8; color: white; border: none; 
+            padding: 0; border-radius: 8px; cursor: pointer; 
+            font-weight: bold; font-size: 0.95rem; height: 40px; 
+            margin-top: 5px; box-shadow: 0 2px 4px rgba(26,115,232,0.2);
+        }
 
-        /* 卡片底部快速新增：垂直加強版 */
-        .card-footer-add { margin-top: auto; padding-top: 12px; border-top: 1px solid #f0f2f5; display: flex; flex-direction: column; gap: 8px; }
-        .add-row { display: flex; gap: 8px; }
-        .add-row input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; height: 40px; }
-        .card-add-btn { background: #f8f9fa; border: 1px solid #ddd; padding: 10px; border-radius: 8px; font-size: 0.9rem; cursor: pointer; font-weight: bold; color: #1a73e8; }
+        /* 中間卡片：手機一律單欄 */
+        .middle-section { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #f0f0f0; font-size: 0.9rem; }
+        .income-text { color: #27ae60; font-weight: bold; font-size: 0.8rem; margin-top: 10px; display: block; border-left: 3px solid #27ae60; padding-left: 6px; }
+        .expense-text { color: #e74c3c; font-weight: bold; font-size: 0.8rem; margin-top: 10px; display: block; border-left: 3px solid #e74c3c; padding-left: 6px; }
+        
+        /* 行內編輯金額：更好點擊 */
+        .inline-edit-amt { width: 85px; border: 1px solid #eee; text-align: right; font-weight: bold; background: #f9f9f9; border-radius: 5px; padding: 4px 6px; font-size: 0.9rem; }
+        .del-btn { color: #ccc; cursor: pointer; margin-left: 8px; font-size: 1.1rem; padding: 4px; }
 
-        /* 歷史流水帳：日期輸入框優化 */
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 10px; }
-        .history-table th, .history-table td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; text-align: left; }
-        .inline-edit-date { border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-size: 0.85rem; width: 115px; }
-        .text-i { color: #27ae60; }
-        .text-e { color: #e74c3c; }
+        /* 卡片底部新增：修正溢出 */
+        .card-footer-add { margin-top: auto; padding-top: 10px; border-top: 1px solid #f8f9fa; display: flex; flex-direction: column; gap: 6px; }
+        .add-row { display: flex; gap: 6px; width: 100%; }
+        .add-row input { flex: 1; padding: 8px; border: 1px solid #eee; border-radius: 6px; font-size: 0.85rem; height: 36px; min-width: 0; }
+        .card-add-btn { background: #f0f4f8; border: 1px solid #d0d7de; padding: 0 12px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: bold; color: #1a73e8; height: 36px; }
 
-        .balance-val { font-size: 3rem; font-weight: bold; text-align: center; }
+        /* 圖表與結餘：手機端併排優化 */
+        .summary-section { display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; }
+        .balance-val { font-size: 1.8rem; font-weight: bold; text-align: center; margin-top: 5px; letter-spacing: -1px; }
 
-        /* 行動端專屬 RWD 調整 */
-        @media (max-width: 600px) {
-            body { padding: 8px; }
-            .form-grid { flex-direction: column; align-items: stretch; }
-            .form-group { min-width: 100%; }
-            .submit-btn { width: 100%; }
-            .middle-section { grid-template-columns: 1fr; }
-            .top-bar strong { font-size: 0.9rem; }
-            .balance-val { font-size: 2.2rem; }
-            .history-table { font-size: 0.75rem; }
-            .inline-edit-date { width: 100px; padding: 2px; }
+        /* 流水帳明細 */
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .history-table th, .history-table td { padding: 8px 4px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+        .inline-edit-date { border: none; background: #f4f4f4; border-radius: 4px; padding: 3px; font-size: 0.75rem; width: 100px; }
+
+        @media (min-width: 769px) {
+            .middle-section { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+            .form-grid { grid-template-columns: repeat(6, 1fr); align-items: flex-end; }
+            .form-group.full-width { grid-column: auto; }
+            .submit-btn { margin-top: 0; }
+            .balance-val { font-size: 2.5rem; }
         }
     </style>
 </head>
@@ -73,7 +79,7 @@
 
     <div class="dashboard-container">
         <div class="top-bar">
-            <strong>📊 家庭財務管理</strong>
+            <strong>📊 財務管理</strong>
             <div class="month-nav">
                 <button class="nav-btn" onclick="changeMonth(-1)">◀</button>
                 <select id="monthSelect"></select>
@@ -82,45 +88,35 @@
         </div>
 
         <div class="card form-section">
-            <div class="card-title">快速記帳</div>
+            <div class="card-title">📝 快速記帳</div>
             <form id="mainForm" class="form-grid">
                 <div class="form-group"><label>日期</label><input type="date" id="fDate" required></div>
-                <div class="form-group">
-                    <label>收支</label>
-                    <select id="fType"><option value="支出">支出</option><option value="收入">收入</option></select>
-                </div>
-                <div class="form-group">
-                    <label>成員</label>
-                    <select id="fMember" onchange="updateCategoryDropdown()">
-                        <option value="共同支出">共同收入/支出</option>
-                        <option value="爸爸">爸爸</option><option value="媽媽">媽媽</option>
-                        <option value="姐姐">姐姐</option><option value="弟弟">弟弟</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>分類</label>
-                    <select id="fCat" required></select>
-                </div>
-                <div class="form-group"><label>金額</label><input type="number" id="fAmt" placeholder="NT$" required></div>
-                <button type="submit" class="submit-btn">儲存紀錄</button>
+                <div class="form-group"><label>收支</label><select id="fType"><option value="支出">支出</option><option value="收入">收入</option></select></div>
+                <div class="form-group"><label>成員</label><select id="fMember" onchange="updateCategoryDropdown()">
+                    <option value="共同支出">共同</option><option value="爸爸">爸爸</option>
+                    <option value="媽媽">媽媽</option><option value="姐姐">姐姐</option><option value="弟弟">弟弟</option>
+                </select></div>
+                <div class="form-group"><label>分類</label><select id="fCat" required></select></div>
+                <div class="form-group full-width"><label>金額 (NT$)</label><input type="number" id="fAmt" placeholder="請輸入金額" required></div>
+                <button type="submit" class="submit-btn full-width">儲存紀錄</button>
             </form>
         </div>
 
         <div class="middle-section" id="cardsContainer"></div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div class="card" style="min-height: auto;"><div class="card-title">支出比例</div><div style="max-width: 180px; margin: auto;"><canvas id="pie"></canvas></div></div>
-            <div class="card" style="justify-content:center; border-left: 8px solid #27ae60; min-height: auto;">
-                <div class="card-title" style="border:none">本月結餘</div>
+        <div class="summary-section">
+            <div class="card" style="min-height: auto;"><div class="card-title">📉 支出比例</div><div style="max-width: 140px; margin: auto;"><canvas id="pie"></canvas></div></div>
+            <div class="card" style="justify-content:center; border-left: 6px solid #27ae60; min-height: auto;">
+                <div class="card-title" style="border:none; margin:0; font-size:0.8rem;">本月結餘</div>
                 <div class="balance-val" id="totalBal">...</div>
             </div>
         </div>
 
         <div class="card" style="min-height: auto;">
-            <div class="card-title" id="historyTitle">本月流水帳明細</div>
+            <div class="card-title">📋 流水帳明細</div>
             <div style="overflow-x: auto;">
                 <table class="history-table">
-                    <thead><tr><th>日期</th><th>成員</th><th>類型</th><th>項目</th><th>金額</th><th>操作</th></tr></thead>
+                    <thead><tr><th>日期</th><th>成員</th><th>項目</th><th>金額</th><th></th></tr></thead>
                     <tbody id="historyTbody"></tbody>
                 </table>
             </div>
@@ -182,7 +178,7 @@
             await addDoc(collection(db, "expenses"), { date: new Date().toISOString().slice(0,10), member, type, category: cat, amount: Number(amt), timestamp: new Date() });
         };
 
-        window.delItem = async (id) => { if(confirm("確定刪除這筆紀錄？")) await deleteDoc(doc(db, "expenses", id)); };
+        window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
 
         window.changeMonth = (offset) => {
             let [y, m] = currentMonth.split('-').map(Number);
@@ -238,7 +234,7 @@
                 let items = '';
                 const sections = [{t:'收入', k:'收入', c:'income-text'}, {t:'支出', k:'支出', c:'expense-text'}];
                 sections.forEach(s => {
-                    items += `<div class="${s.c}">▼ ${s.t}</div>`;
+                    items += `<span class="${s.c}">▼ ${s.t}</span>`;
                     const cats = [...new Set([...(defaults[m][s.k] || []), ...Object.keys(results[m][s.k])])];
                     cats.forEach(cat => {
                         const logs = results[m][s.k][cat] || [];
@@ -252,18 +248,18 @@
             });
             document.getElementById('cardsContainer').innerHTML = cardsHtml;
 
-            document.getElementById('historyTitle').innerText = `${currentMonth} 流水帳`;
             document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `
                 <tr>
                     <td><input type="date" class="inline-edit-date" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td>
-                    <td>${d.member.slice(0,2)}</td><td class="${d.type==='收入'?'text-i':'text-e'}">${d.type[0]}</td>
-                    <td>${d.category}</td><td style="font-weight:bold">${d.amount.toLocaleString()}</td>
+                    <td>${d.member.slice(0,2)}</td>
+                    <td>${d.category}</td>
+                    <td style="font-weight:bold; color:${d.type==='收入'?'#27ae60':'#e74c3c'}">${d.amount.toLocaleString()}</td>
                     <td><b class="del-btn" onclick="delItem('${d.id}')">×</b></td>
-                </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;">無紀錄</td></tr>';
+                </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;">無紀錄</td></tr>';
 
             const b = balI - balE;
             const balEl = document.getElementById('totalBal');
-            balEl.innerText = `NT$ ${b.toLocaleString()}`;
+            balEl.innerText = `${b.toLocaleString()}`;
             balEl.style.color = b < 0 ? '#e74c3c' : '#27ae60';
             pieChart.data.labels = Object.keys(pieData);
             pieChart.data.datasets[0].data = Object.values(pieData);
