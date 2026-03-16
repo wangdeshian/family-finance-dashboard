@@ -3,61 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家庭財務管理系統 - 直覺對帳版</title>
+    <title>家庭財務管理系統 - 專業版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* 基礎設定：確保所有元素不溢出 */
         * { box-sizing: border-box; }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; display: flex; justify-content: center; }
         .dashboard-container { width: 100%; max-width: 1400px; display: flex; flex-direction: column; gap: 20px; }
         
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 18px; display: flex; flex-direction: column; min-height: 450px; width: 100%; overflow: hidden; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 18px; display: flex; flex-direction: column; }
         .card-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 12px; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px; color: #1a73e8; }
         
+        /* 頂部導覽列 */
         .top-bar { background: #34495e; color: white; padding: 15px 25px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; }
         .month-nav { display: flex; align-items: center; gap: 10px; }
         .nav-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 5px 12px; border-radius: 4px; cursor: pointer; }
         .top-bar select { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; }
 
-        .form-section { border-top: 5px solid #f39c12; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; width: 100%; margin-top: 4px; }
+        /* 恢復橫向快速記帳表單 (對應 image_aad73f.png) */
+        .form-section { border-top: 5px solid #1a73e8; }
+        .form-grid { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-size: 0.85rem; font-weight: bold; color: #666; }
+        .form-group input, .form-group select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; }
+        .submit-btn { background: #34495e; color: white; border: none; padding: 9px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        .submit-btn:hover { background: #1a73e8; }
 
-        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-        .income-text { color: #27ae60; font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
-        .expense-text { color: #e74c3c; font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
-        
+        /* 卡片區域 */
+        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 15px; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eee; font-size: 0.9rem; }
+        .income-text { color: #27ae60; font-weight: bold; font-size: 0.85rem; margin-top: 8px; }
+        .expense-text { color: #e74c3c; font-weight: bold; font-size: 0.85rem; margin-top: 8px; }
         
-        /* 金額輸入框：完全取代文字，實現直接修改 */
-        .direct-edit-amt {
-            width: 85px;
-            border: 1px solid #f0f0f0;
-            text-align: right;
-            font-weight: bold;
-            font-size: 0.9rem;
-            color: #2c3e50;
-            background: #fafafa;
-            border-radius: 4px;
-            padding: 4px;
-            transition: all 0.2s;
-        }
-        .direct-edit-amt:focus { border-color: #27ae60; background: #fff; outline: none; box-shadow: 0 0 5px rgba(39,174,96,0.2); }
-        .del-btn { color: #ccc; cursor: pointer; margin-left: 8px; font-size: 1rem; }
+        .inline-edit-amt { width: 75px; border: 1px solid #eee; text-align: right; font-weight: bold; background: #f9f9f9; border-radius: 4px; padding: 2px; }
+        .inline-edit-amt:focus { border-color: #27ae60; background: #fff; outline: none; }
+
+        /* 歷史流水帳收摺樣式 */
+        .history-section { margin-top: 10px; }
+        .accordion-item { border: 1px solid #eee; border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+        .accordion-header { background: #f8f9fa; padding: 12px 20px; cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; }
+        .accordion-content { display: none; padding: 10px; background: #fff; overflow-x: auto; }
+        .accordion-content.active { display: block; }
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 600px; }
+        .history-table th, .history-table td { padding: 10px; border-bottom: 1px solid #f0f0f0; text-align: left; }
+        .text-i { color: #27ae60; }
+        .text-e { color: #e74c3c; }
+        .del-btn { color: #ccc; cursor: pointer; margin-left: 8px; font-weight: bold; }
         .del-btn:hover { color: #e74c3c; }
 
-        /* 跑版修復：強制寬度且垂直堆疊 */
-        .inline-add { margin-top: auto; padding-top: 15px; border-top: 1px solid #eee; display: flex; flex-direction: column; gap: 8px; }
-        .add-inputs { display: flex; gap: 5px; width: 100%; }
-        .add-inputs input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
-        .input-name { flex: 2; min-width: 0; }
-        .input-val { flex: 1; min-width: 0; }
-        .inline-btn { background: #34495e; color: white; border: none; padding: 8px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+        .balance-val { font-size: 3rem; font-weight: bold; text-align: center; }
 
-        .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .balance-val { font-size: 3.5rem; font-weight: bold; margin-top: 10px; }
-
-        @media (max-width: 768px) { .middle-section { grid-template-columns: 1fr; } .bottom-section { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { .form-grid { flex-direction: column; align-items: stretch; } }
     </style>
 </head>
 <body>
@@ -74,27 +69,39 @@
 
         <div class="card form-section">
             <div class="card-title">快速記帳</div>
-            <form id="mainForm">
-                <div class="form-grid">
-                    <div class="form-group"><label>日期</label><input type="date" id="fDate" required></div>
-                    <div class="form-group"><label>收支</label><select id="fType"><option value="支出">支出</option><option value="收入">收入</option></select></div>
-                    <div class="form-group"><label>成員</label><select id="fMember"><option value="共同支出">共同支出</option><option value="爸爸">爸爸</option><option value="媽媽">媽媽</option><option value="姐姐">姐姐</option><option value="弟弟">弟弟</option></select></div>
-                    <div class="form-group"><label>分類</label><input type="text" id="fCat" required></div>
-                    <div class="form-group"><label>金額</label><input type="number" id="fAmt" required></div>
+            <form id="mainForm" class="form-grid">
+                <div class="form-group"><label>日期</label><input type="date" id="fDate" required></div>
+                <div class="form-group">
+                    <label>收支</label>
+                    <select id="fType"><option value="支出">支出</option><option value="收入">收入</option></select>
                 </div>
-                <button type="submit" class="submit-btn" style="margin-top:10px;">儲存紀錄</button>
+                <div class="form-group">
+                    <label>成員</label>
+                    <select id="fMember">
+                        <option value="共同支出">共同支出</option>
+                        <option value="爸爸">爸爸</option><option value="媽媽">媽媽</option>
+                        <option value="姐姐">姐姐</option><option value="弟弟">弟弟</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>分類</label><input type="text" id="fCat" placeholder="如：信用卡" required></div>
+                <div class="form-group"><label>金額</label><input type="number" id="fAmt" placeholder="NT$" required></div>
+                <button type="submit" class="submit-btn">儲存紀錄</button>
             </form>
         </div>
 
-        <div class="middle-section" id="cardsContainer">
-            </div>
+        <div class="middle-section" id="cardsContainer"></div>
 
-        <div class="bottom-section">
-            <div class="card"><div class="card-title">支出結構</div><canvas id="pie"></canvas></div>
-            <div class="card" style="text-align:center; border-left: 8px solid #27ae60;">
-                <div class="card-title" style="border:none">本月總結餘</div>
-                <div class="balance-val" id="totalBal">計算中...</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="card"><div class="card-title">支出比例</div><canvas id="pie"></canvas></div>
+            <div class="card" style="justify-content:center; border-left: 8px solid #27ae60;">
+                <div class="card-title" style="border:none">本月結餘</div>
+                <div class="balance-val" id="totalBal">載入中...</div>
             </div>
+        </div>
+
+        <div class="card history-section">
+            <div class="card-title">歷史流水帳明細 (依月份收摺)</div>
+            <div id="historyAccordion"></div>
         </div>
     </div>
 
@@ -118,40 +125,27 @@
 
         const ctx = document.getElementById('pie').getContext('2d');
         pieChart = new Chart(ctx, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#34495e'] }] } });
+        document.getElementById('fDate').valueAsDate = new Date();
 
-        // 直接自動儲存，無視窗
+        // 直接在卡片修改金額
         window.saveVal = async (id, member, type, category, newVal) => {
             const val = Number(newVal);
             if (isNaN(val)) return;
             if (id) {
                 await updateDoc(doc(db, "expenses", id), { amount: val });
             } else if (val > 0) {
-                await addDoc(collection(db, "expenses"), {
-                    date: `${currentMonth}-01`, member, type, category, amount: val, timestamp: new Date()
-                });
+                await addDoc(collection(db, "expenses"), { date: `${currentMonth}-01`, member, type, category, amount: val, timestamp: new Date() });
             }
         };
 
+        window.delItem = async (id) => { if(confirm("確定刪除這筆流水帳？")) await deleteDoc(doc(db, "expenses", id)); };
+
         window.changeMonth = (offset) => {
             let [y, m] = currentMonth.split('-').map(Number);
-            m += offset;
-            if (m > 12) { y++; m = 1; }
-            if (m < 1) { y--; m = 12; }
+            m += offset; if (m > 12) { y++; m = 1; } if (m < 1) { y--; m = 12; }
             currentMonth = `${y}-${String(m).padStart(2, '0')}`;
-            render();
-            updateMonthSelector();
+            render(); updateMonthSelector();
         };
-
-        window.quickAdd = async (m) => {
-            const cat = document.getElementById(`add-cat-${m}`).value;
-            const amt = document.getElementById(`add-amt-${m}`).value;
-            if(!cat || !amt) return alert("請輸入項目與金額");
-            await addDoc(collection(db, "expenses"), {
-                date: `${currentMonth}-01`, member: m, type: '支出', category: cat, amount: Number(amt), timestamp: new Date()
-            });
-        };
-
-        window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
 
         onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => {
             allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() }));
@@ -171,10 +165,14 @@
         document.getElementById('mainForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await addDoc(collection(db, "expenses"), {
-                date: document.getElementById('fDate').value, type: document.getElementById('fType').value,
-                member: document.getElementById('fMember').value, category: document.getElementById('fCat').value,
-                amount: Number(document.getElementById('fAmt').value), timestamp: new Date()
+                date: document.getElementById('fDate').value,
+                type: document.getElementById('fType').value,
+                member: document.getElementById('fMember').value,
+                category: document.getElementById('fCat').value,
+                amount: Number(document.getElementById('fAmt').value),
+                timestamp: new Date()
             });
+            document.getElementById('fAmt').value = '';
         });
 
         const render = () => {
@@ -189,15 +187,31 @@
             };
 
             const results = {};
-            members.forEach(m => results[m] = { 收入: {}, 支出: {}, tI: 0, tE: 0 });
-            allData.filter(d => d.date.startsWith(currentMonth)).forEach(d => {
-                const target = results[d.member];
-                if (!target) return;
-                if (d.type === '收入') { target.tI += d.amount; balI += d.amount; (target.收入[d.category] = target.收入[d.category] || []).push({id: d.id, v: d.amount}); }
-                else { target.tE += d.amount; balE += d.amount; (target.支出[d.category] = target.支出[d.category] || []).push({id: d.id, v: d.amount}); pieData[d.category] = (pieData[d.category] || 0) + d.amount; }
+            const historyGroups = {}; // 按月分組歷史紀錄
+
+            members.forEach(m => results[m] = { 收入: {}, 支出: {} });
+
+            allData.forEach(d => {
+                const m = d.date.slice(0, 7);
+                if (!historyGroups[m]) historyGroups[m] = [];
+                historyGroups[m].push(d);
+
+                if (m === currentMonth) {
+                    const target = results[d.member];
+                    if (!target) return;
+                    if (d.type === '收入') {
+                        balI += d.amount;
+                        (target.收入[d.category] = target.收入[d.category] || []).push({id: d.id, v: d.amount});
+                    } else {
+                        balE += d.amount;
+                        (target.支出[d.category] = target.支出[d.category] || []).push({id: d.id, v: d.amount});
+                        pieData[d.category] = (pieData[d.category] || 0) + d.amount;
+                    }
+                }
             });
 
-            let html = '';
+            // 渲染卡片
+            let cardsHtml = '';
             members.forEach(m => {
                 let items = '';
                 const sections = m === '共同支出' ? [{t:'支出', k:'支出', c:'expense-text'}] : [{t:'收入', k:'收入', c:'income-text'}, {t:'支出', k:'支出', c:'expense-text'}];
@@ -212,7 +226,7 @@
                             <div class="item-row">
                                 <span>${cat}</span>
                                 <span>
-                                    <input type="number" class="direct-edit-amt" value="${sum}" 
+                                    <input type="number" class="inline-edit-amt" value="${sum}" 
                                         onblur="saveVal('${firstId}', '${m}', '${s.k}', '${cat}', this.value)"
                                         onkeydown="if(event.key==='Enter') this.blur()">
                                     ${logs.map(l => `<b class="del-btn" onclick="delItem('${l.id}')">×</b>`).join('')}
@@ -220,28 +234,48 @@
                             </div>`;
                     });
                 });
-                html += `
-                    <div class="card">
-                        <div class="card-title">${m}</div>
-                        <div style="flex:1">${items}</div>
-                        <div class="inline-add">
-                            <div class="add-inputs">
-                                <input type="text" id="add-cat-${m}" class="input-name" placeholder="項目">
-                                <input type="number" id="add-amt-${m}" class="input-val" placeholder="金額">
-                            </div>
-                            <button class="inline-btn" onclick="quickAdd('${m}')">新增自訂支出</button>
+                cardsHtml += `<div class="card"><div class="card-title">${m}</div>${items}</div>`;
+            });
+            document.getElementById('cardsContainer').innerHTML = cardsHtml;
+
+            // 渲染歷史紀錄 (依月份收摺)
+            let historyHtml = '';
+            Object.keys(historyGroups).sort().reverse().forEach(month => {
+                const isActive = month === currentMonth;
+                historyHtml += `
+                    <div class="accordion-item">
+                        <div class="accordion-header" onclick="this.nextElementSibling.classList.toggle('active')">
+                            <span>📅 ${month} 流水帳清單</span>
+                            <span>${historyGroups[month].length} 筆 ▼</span>
+                        </div>
+                        <div class="accordion-content ${isActive ? 'active' : ''}">
+                            <table class="history-table">
+                                <thead><tr><th>日期</th><th>成員</th><th>類別</th><th>分類</th><th>金額</th><th>操作</th></tr></thead>
+                                <tbody>
+                                    ${historyGroups[month].map(d => `
+                                        <tr>
+                                            <td>${d.date}</td>
+                                            <td>${d.member}</td>
+                                            <td class="${d.type==='收入'?'text-i':'text-e'}">${d.type}</td>
+                                            <td>${d.category}</td>
+                                            <td style="font-weight:bold">NT$ ${d.amount.toLocaleString()}</td>
+                                            <td><b class="del-btn" onclick="delItem('${d.id}')">刪除</b></td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
                         </div>
                     </div>`;
             });
-            document.getElementById('cardsContainer').innerHTML = html;
+            document.getElementById('historyAccordion').innerHTML = historyHtml;
+
             const b = balI - balE;
             document.getElementById('totalBal').innerText = `NT$ ${b.toLocaleString()}`;
-            document.getElementById('totalBal').style.color = b<0?'#e74c3c':'#27ae60';
+            document.getElementById('totalBal').style.color = b < 0 ? '#e74c3c' : '#27ae60';
             pieChart.data.labels = Object.keys(pieData);
             pieChart.data.datasets[0].data = Object.values(pieData);
             pieChart.update();
         };
-        setup();
     </script>
 </body>
 </html>
