@@ -3,34 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>家庭財務紀錄儀表板</title>
+    <title>家庭財務紀錄儀表板 - 進階明細版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* 基礎全域設定 */
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; display: flex; justify-content: center; }
-        .dashboard-container { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 30px; }
+        .dashboard-container { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 30px; }
         
         /* 卡片共用樣式 */
         .card { background-color: #ffffff; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 25px; box-sizing: border-box; transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); }
-        .card-title { font-size: 1.2rem; font-weight: bold; color: #555; margin-bottom: 15px; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-        .amount { font-size: 2rem; font-weight: bold; color: #2c3e50; }
+        .card-title { font-size: 1.3rem; font-weight: bold; color: #2c3e50; margin-bottom: 15px; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; text-align: center; }
+        .amount { font-size: 2rem; font-weight: bold; color: #2c3e50; text-align: center; }
         
         /* 記帳表單樣式 */
         .form-section { border-left: 8px solid #f39c12; }
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 15px; margin-bottom: 15px; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; color: #666; }
         .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
-        .submit-btn { background-color: #f39c12; color: white; border: none; padding: 12px 20px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.3s; }
+        .submit-btn { background-color: #f39c12; color: white; border: none; padding: 12px 20px; font-size: 1.1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.3s; }
         .submit-btn:hover { background-color: #e67e22; }
 
+        /* 明細列表樣式 (新增) */
+        .stat-list { text-align: left; margin-top: 15px; font-size: 0.95rem; }
+        .stat-header { font-weight: bold; margin-top: 10px; margin-bottom: 5px; border-bottom: 2px solid #eee; padding-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .stat-item { display: flex; justify-content: space-between; margin-bottom: 6px; color: #555; }
+        .text-income { color: #1abc9c; }
+        .text-expense { color: #e74c3c; }
+        .sub-total { font-size: 0.85rem; background: #f4f4f4; padding: 2px 8px; border-radius: 10px; color: #333; }
+
         /* 頂部：家庭共同支出 */
-        .top-section { text-align: center; border-left: 8px solid #4CAF50; }
+        .top-section { border-left: 8px solid #4CAF50; }
 
         /* 中間：成員個別支出 */
         .middle-section { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .member-card { text-align: center; }
         .member-dad { border-top: 5px solid #3498db; }
         .member-mom { border-top: 5px solid #e74c3c; }
         .member-sister { border-top: 5px solid #f1c40f; }
@@ -43,9 +50,12 @@
         .balance-amount { font-size: 3.5rem; font-weight: bold; margin-top: 10px; transition: color 0.3s; }
 
         /* RWD 響應式設計 */
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
             .middle-section { grid-template-columns: repeat(2, 1fr); }
             .bottom-section { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 500px) {
+            .middle-section { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -54,7 +64,7 @@
     <div class="dashboard-container">
         
         <div class="card form-section">
-            <h2 class="card-title">新增本月流水帳</h2>
+            <h2 class="card-title" style="text-align: left;">新增本月流水帳</h2>
             <form id="expenseForm">
                 <div class="form-grid">
                     <div class="form-group">
@@ -65,13 +75,13 @@
                         <label>收支類型</label>
                         <select id="inputType" required>
                             <option value="支出">支出 (花費)</option>
-                            <option value="收入">收入 (薪資/獎金)</option>
+                            <option value="收入">收入 (進帳)</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>歸屬成員</label>
                         <select id="inputMember" required>
-                            <option value="共同支出">共同支出</option>
+                            <option value="共同支出">共同支出 (家用)</option>
                             <option value="爸爸">爸爸</option>
                             <option value="媽媽">媽媽</option>
                             <option value="姐姐">姐姐</option>
@@ -79,13 +89,24 @@
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>支出分類</label>
+                        <label>明細分類</label>
                         <select id="inputCategory" required>
-                            <option value="食">食 (餐飲)</option>
-                            <option value="衣">衣 (服飾)</option>
-                            <option value="住">住 (房租/水電)</option>
-                            <option value="行">行 (交通)</option>
-                            <option value="育樂">育樂 (休閒)</option>
+                            <optgroup label="收入項目">
+                                <option value="薪資">薪資</option>
+                                <option value="股票">股票</option>
+                                <option value="投資">投資</option>
+                            </optgroup>
+                            <optgroup label="個人支出項目">
+                                <option value="信用卡">信用卡</option>
+                                <option value="貸款">貸款</option>
+                                <option value="孝親費">孝親費</option>
+                                <option value="個人其他">個人其他</option>
+                            </optgroup>
+                            <optgroup label="共同支出項目">
+                                <option value="房租">房租</option>
+                                <option value="水電">水電</option>
+                                <option value="共同其他">共同其他</option>
+                            </optgroup>
                         </select>
                     </div>
                     <div class="form-group">
@@ -94,47 +115,43 @@
                     </div>
                     <div class="form-group">
                         <label>備註事項</label>
-                        <input type="text" id="inputDesc" placeholder="例如：全家晚餐">
+                        <input type="text" id="inputDesc" placeholder="選填">
                     </div>
                 </div>
                 <button type="submit" class="submit-btn">新增紀錄</button>
             </form>
         </div>
 
-        <div class="card top-section">
+        <div class="card top-section" id="commonCardContent">
             <h2 class="card-title">本月家庭共同支出</h2>
-            <div class="amount" id="totalCommon">NT$ 0</div>
+            <div class="amount">載入中...</div>
         </div>
 
         <div class="middle-section">
-            <div class="card member-card member-dad">
-                <h3 class="card-title">爸爸</h3>
-                <div class="amount" id="totalDad">NT$ 0</div>
+            <div class="card member-card member-dad" id="card-爸爸">
+                <h3 class="card-title">爸爸</h3><div class="amount" style="font-size:1rem;color:#999;">載入中...</div>
             </div>
-            <div class="card member-card member-mom">
-                <h3 class="card-title">媽媽</h3>
-                <div class="amount" id="totalMom">NT$ 0</div>
+            <div class="card member-card member-mom" id="card-媽媽">
+                <h3 class="card-title">媽媽</h3><div class="amount" style="font-size:1rem;color:#999;">載入中...</div>
             </div>
-            <div class="card member-card member-sister">
-                <h3 class="card-title">姐姐</h3>
-                <div class="amount" id="totalSister">NT$ 0</div>
+            <div class="card member-card member-sister" id="card-姐姐">
+                <h3 class="card-title">姐姐</h3><div class="amount" style="font-size:1rem;color:#999;">載入中...</div>
             </div>
-            <div class="card member-card member-brother">
-                <h3 class="card-title">弟弟</h3>
-                <div class="amount" id="totalBrother">NT$ 0</div>
+            <div class="card member-card member-brother" id="card-弟弟">
+                <h3 class="card-title">弟弟</h3><div class="amount" style="font-size:1rem;color:#999;">載入中...</div>
             </div>
         </div>
 
         <div class="bottom-section">
             <div class="card">
-                <h2 class="card-title text-center" style="text-align: center;">本月支出分類圓餅圖</h2>
+                <h2 class="card-title">本月主要支出結構</h2>
                 <div class="chart-container">
                     <canvas id="expensePieChart"></canvas>
                 </div>
             </div>
             
             <div class="card balance-card">
-                <h2 class="card-title">本月總結餘</h2>
+                <h2 class="card-title" style="border:none;">本月總結餘</h2>
                 <div class="balance-amount" id="currentBalance" style="color: #1abc9c;">計算中...</div>
             </div>
         </div>
@@ -146,7 +163,7 @@
         import { getFirestore, collection, addDoc, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 
-        // Firebase 金鑰設定已為您保留
+        // ⚠️ 請在此處貼回您的 Firebase 設定碼 ⚠️
         const firebaseConfig = {
             apiKey: "AIzaSyDiatcf67zBQFDe47O0zQqwk9blNFP3Y7Q",
             authDomain: "family-finance-f4077.firebaseapp.com",
@@ -163,16 +180,17 @@
         
         document.getElementById('inputDate').valueAsDate = new Date();
 
+        // 更新圓餅圖分類標籤
         let pieChart;
         const ctx = document.getElementById('expensePieChart').getContext('2d');
         const initChart = () => {
             pieChart = new Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: ['食', '衣', '住', '行', '育樂'],
+                    labels: ['房租', '水電', '信用卡', '貸款', '孝親費', '其他花費'],
                     datasets: [{
-                        data: [0, 0, 0, 0, 0],
-                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                        data: [0, 0, 0, 0, 0, 0],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#c9cbcf']
                     }]
                 },
                 options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
@@ -180,28 +198,18 @@
         };
         initChart();
 
-        // 寫入資料庫邏輯（包含收支類型）
+        // 寫入資料庫
         document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             e.preventDefault(); 
             const date = document.getElementById('inputDate').value;
-            const type = document.getElementById('inputType').value; // 取得收支類型
+            const type = document.getElementById('inputType').value;
             const member = document.getElementById('inputMember').value;
             const category = document.getElementById('inputCategory').value;
             const amount = Number(document.getElementById('inputAmount').value);
             const desc = document.getElementById('inputDesc').value;
 
             try {
-                await addDoc(collection(db, "expenses"), {
-                    date: date,
-                    type: type, // 寫入收支類型
-                    member: member,
-                    category: category,
-                    amount: amount,
-                    description: desc,
-                    timestamp: new Date()
-                });
-                
-                // 新增後只清空金額與備註，方便連續記帳
+                await addDoc(collection(db, "expenses"), { date, type, member, category, amount, description: desc, timestamp: new Date() });
                 document.getElementById('inputAmount').value = ''; 
                 document.getElementById('inputDesc').value = ''; 
             } catch (error) {
@@ -210,52 +218,124 @@
             }
         });
 
-        // 即時監聽與結餘計算邏輯
+        // 建立空的成員資料結構模型
+        const createEmptyMember = () => ({
+            收入: { '薪資': 0, '股票': 0, '投資': 0, total: 0 },
+            支出: { '信用卡': 0, '貸款': 0, '孝親費': 0, '個人其他': 0, total: 0 }
+        });
+
+        // 即時監聽與核心計算邏輯
         const setupRealtimeListener = () => {
             const q = query(collection(db, "expenses"));
             
             onSnapshot(q, (snapshot) => {
                 const currentMonth = new Date().toISOString().slice(0, 7); 
                 
-                // 初始化總收入與總支出
                 let totalIncome = 0;
                 let totalExpense = 0;
 
-                let sums = { 共同支出: 0, 爸爸: 0, 媽媽: 0, 姐姐: 0, 弟弟: 0 };
-                let catSums = { '食': 0, '衣': 0, '住': 0, '行': 0, '育樂': 0 };
+                let membersData = {
+                    '爸爸': createEmptyMember(),
+                    '媽媽': createEmptyMember(),
+                    '姐姐': createEmptyMember(),
+                    '弟弟': createEmptyMember()
+                };
+                
+                let commonData = { '房租': 0, '水電': 0, '共同其他': 0, total: 0 };
+                let pieData = { '房租': 0, '水電': 0, '信用卡': 0, '貸款': 0, '孝親費': 0, '其他': 0 };
 
                 snapshot.forEach((doc) => {
                     const data = doc.data();
                     if (data.date && data.date.startsWith(currentMonth)) {
                         
-                        // 判斷收入或支出
                         if (data.type === '收入') {
                             totalIncome += data.amount;
+                            if (membersData[data.member]) {
+                                membersData[data.member].收入.total += data.amount;
+                                // 若分類存在則加入，否則歸為其他收入
+                                if (membersData[data.member].收入[data.category] !== undefined) {
+                                    membersData[data.member].收入[data.category] += data.amount;
+                                }
+                            }
                         } else {
-                            // 預設為支出，將金額加到總支出、成員與分類中
                             totalExpense += data.amount;
-                            if (sums[data.member] !== undefined) sums[data.member] += data.amount;
-                            if (catSums[data.category] !== undefined) catSums[data.category] += data.amount;
+                            
+                            // 處理共同支出
+                            if (data.member === '共同支出') {
+                                commonData.total += data.amount;
+                                if (commonData[data.category] !== undefined) {
+                                    commonData[data.category] += data.amount;
+                                    if(pieData[data.category] !== undefined) pieData[data.category] += data.amount;
+                                } else {
+                                    commonData['共同其他'] += data.amount;
+                                    pieData['其他'] += data.amount;
+                                }
+                            } 
+                            // 處理個人支出
+                            else if (membersData[data.member]) {
+                                membersData[data.member].支出.total += data.amount;
+                                if (membersData[data.member].支出[data.category] !== undefined) {
+                                    membersData[data.member].支出[data.category] += data.amount;
+                                    if(pieData[data.category] !== undefined) pieData[data.category] += data.amount;
+                                } else {
+                                    membersData[data.member].支出['個人其他'] += data.amount;
+                                    pieData['其他'] += data.amount;
+                                }
+                            }
                         }
                     }
                 });
 
-                // 計算並更新結餘畫面
+                // --- 渲染畫面區塊 ---
+                
+                // 1. 渲染總結餘
                 const currentBalance = totalIncome - totalExpense;
                 const balanceElement = document.getElementById('currentBalance');
                 balanceElement.innerText = `NT$ ${currentBalance.toLocaleString()}`;
-                
-                // 結餘為負數時顯示紅色警告，正數為預設綠色
                 balanceElement.style.color = currentBalance < 0 ? '#e74c3c' : '#1abc9c';
 
-                // 更新支出畫面
-                document.getElementById('totalCommon').innerText = `NT$ ${sums['共同支出'].toLocaleString()}`;
-                document.getElementById('totalDad').innerText = `NT$ ${sums['爸爸'].toLocaleString()}`;
-                document.getElementById('totalMom').innerText = `NT$ ${sums['媽媽'].toLocaleString()}`;
-                document.getElementById('totalSister').innerText = `NT$ ${sums['姐姐'].toLocaleString()}`;
-                document.getElementById('totalBrother').innerText = `NT$ ${sums['弟弟'].toLocaleString()}`;
+                // 2. 渲染共同支出卡片
+                document.getElementById('commonCardContent').innerHTML = `
+                    <h2 class="card-title">本月家庭共同支出</h2>
+                    <div class="amount">NT$ ${commonData.total.toLocaleString()}</div>
+                    <div class="stat-list" style="max-width: 400px; margin: 20px auto 0;">
+                        <div class="stat-item"><span>🏠 房租：</span><span>NT$ ${commonData['房租'].toLocaleString()}</span></div>
+                        <div class="stat-item"><span>💡 水電：</span><span>NT$ ${commonData['水電'].toLocaleString()}</span></div>
+                        <div class="stat-item"><span>📦 其他：</span><span>NT$ ${commonData['共同其他'].toLocaleString()}</span></div>
+                    </div>
+                `;
 
-                pieChart.data.datasets[0].data = [catSums['食'], catSums['衣'], catSums['住'], catSums['行'], catSums['育樂']];
+                // 3. 渲染每位成員卡片
+                ['爸爸', '媽媽', '姐姐', '弟弟'].forEach(member => {
+                    const data = membersData[member];
+                    document.getElementById(`card-${member}`).innerHTML = `
+                        <h3 class="card-title">${member}</h3>
+                        <div class="stat-list">
+                            <div class="stat-header text-income">
+                                <span>▼ 收入</span>
+                                <span class="sub-total">小計: ${data.收入.total.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item"><span>薪資：</span><span>${data.收入['薪資'].toLocaleString()}</span></div>
+                            <div class="stat-item"><span>股票：</span><span>${data.收入['股票'].toLocaleString()}</span></div>
+                            <div class="stat-item"><span>投資：</span><span>${data.收入['投資'].toLocaleString()}</span></div>
+                            
+                            <div class="stat-header text-expense" style="margin-top:15px;">
+                                <span>▼ 支出</span>
+                                <span class="sub-total">小計: ${data.支出.total.toLocaleString()}</span>
+                            </div>
+                            <div class="stat-item"><span>信用卡：</span><span>${data.支出['信用卡'].toLocaleString()}</span></div>
+                            <div class="stat-item"><span>貸款：</span><span>${data.支出['貸款'].toLocaleString()}</span></div>
+                            <div class="stat-item"><span>孝親費：</span><span>${data.支出['孝親費'].toLocaleString()}</span></div>
+                            <div class="stat-item"><span>其他：</span><span>${data.支出['個人其他'].toLocaleString()}</span></div>
+                        </div>
+                    `;
+                });
+
+                // 4. 更新圓餅圖
+                pieChart.data.datasets[0].data = [
+                    pieData['房租'], pieData['水電'], pieData['信用卡'], 
+                    pieData['貸款'], pieData['孝親費'], pieData['其他']
+                ];
                 pieChart.update();
             });
         };
