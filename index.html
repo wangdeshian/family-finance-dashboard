@@ -1,124 +1,266 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>案件追蹤系統 - 即時更新測試</title>
-  <style>
-    body { font-family: "微軟正黑體", sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    .form-box { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-    .input-group { margin-bottom: 15px; }
-    .input-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-    .input-group input { width: 100%; padding: 8px; box-sizing: border-box; }
-    button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-    button:hover { background: #0056b3; }
-    .case-card { border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 10px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .case-card span { color: #555; font-size: 0.9em; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭財務紀錄儀表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 基礎全域設定 */
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; color: #333; display: flex; justify-content: center; }
+        .dashboard-container { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 30px; }
+        
+        /* 卡片共用樣式 */
+        .card { background-color: #ffffff; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); padding: 25px; box-sizing: border-box; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+        .card-title { font-size: 1.2rem; font-weight: bold; color: #555; margin-bottom: 15px; margin-top: 0; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .amount { font-size: 2rem; font-weight: bold; color: #2c3e50; }
+        
+        /* 記帳表單樣式 */
+        .form-section { border-left: 8px solid #f39c12; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { margin-bottom: 5px; font-weight: bold; font-size: 0.9rem; color: #666; }
+        .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
+        .submit-btn { background-color: #f39c12; color: white; border: none; padding: 12px 20px; font-size: 1rem; font-weight: bold; border-radius: 8px; cursor: pointer; width: 100%; transition: background 0.3s; }
+        .submit-btn:hover { background-color: #e67e22; }
+
+        /* 頂部：家庭共同支出 */
+        .top-section { text-align: center; border-left: 8px solid #4CAF50; }
+
+        /* 中間：成員個別支出 */
+        .middle-section { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .member-card { text-align: center; }
+        .member-dad { border-top: 5px solid #3498db; }
+        .member-mom { border-top: 5px solid #e74c3c; }
+        .member-sister { border-top: 5px solid #f1c40f; }
+        .member-brother { border-top: 5px solid #9b59b6; }
+
+        /* 底部：圖表與結餘 */
+        .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center; }
+        .chart-container { width: 100%; max-width: 350px; margin: 0 auto; }
+        .balance-card { text-align: center; border-left: 8px solid #1abc9c; height: 100%; display: flex; flex-direction: column; justify-content: center; }
+        .balance-amount { font-size: 3.5rem; font-weight: bold; margin-top: 10px; transition: color 0.3s; }
+
+        /* RWD 響應式設計 */
+        @media (max-width: 768px) {
+            .middle-section { grid-template-columns: repeat(2, 1fr); }
+            .bottom-section { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 <body>
 
-  <h2>新增案件資料</h2>
-  <div class="form-box">
-    <div class="input-group">
-      <label for="employer">雇主名稱 / 案由：</label>
-      <input type="text" id="employer" placeholder="例如：李先生 / 廠工引進">
+    <div class="dashboard-container">
+        
+        <div class="card form-section">
+            <h2 class="card-title">新增本月流水帳</h2>
+            <form id="expenseForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>日期</label>
+                        <input type="date" id="inputDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>收支類型</label>
+                        <select id="inputType" required>
+                            <option value="支出">支出 (花費)</option>
+                            <option value="收入">收入 (薪資/獎金)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>歸屬成員</label>
+                        <select id="inputMember" required>
+                            <option value="共同支出">共同支出</option>
+                            <option value="爸爸">爸爸</option>
+                            <option value="媽媽">媽媽</option>
+                            <option value="姐姐">姐姐</option>
+                            <option value="弟弟">弟弟</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>支出分類</label>
+                        <select id="inputCategory" required>
+                            <option value="食">食 (餐飲)</option>
+                            <option value="衣">衣 (服飾)</option>
+                            <option value="住">住 (房租/水電)</option>
+                            <option value="行">行 (交通)</option>
+                            <option value="育樂">育樂 (休閒)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>金額 (NT$)</label>
+                        <input type="number" id="inputAmount" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label>備註事項</label>
+                        <input type="text" id="inputDesc" placeholder="例如：全家晚餐">
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">新增紀錄</button>
+            </form>
+        </div>
+
+        <div class="card top-section">
+            <h2 class="card-title">本月家庭共同支出</h2>
+            <div class="amount" id="totalCommon">NT$ 0</div>
+        </div>
+
+        <div class="middle-section">
+            <div class="card member-card member-dad">
+                <h3 class="card-title">爸爸</h3>
+                <div class="amount" id="totalDad">NT$ 0</div>
+            </div>
+            <div class="card member-card member-mom">
+                <h3 class="card-title">媽媽</h3>
+                <div class="amount" id="totalMom">NT$ 0</div>
+            </div>
+            <div class="card member-card member-sister">
+                <h3 class="card-title">姐姐</h3>
+                <div class="amount" id="totalSister">NT$ 0</div>
+            </div>
+            <div class="card member-card member-brother">
+                <h3 class="card-title">弟弟</h3>
+                <div class="amount" id="totalBrother">NT$ 0</div>
+            </div>
+        </div>
+
+        <div class="bottom-section">
+            <div class="card">
+                <h2 class="card-title text-center" style="text-align: center;">本月支出分類圓餅圖</h2>
+                <div class="chart-container">
+                    <canvas id="expensePieChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card balance-card">
+                <h2 class="card-title">本月總結餘</h2>
+                <div class="balance-amount" id="currentBalance" style="color: #1abc9c;">計算中...</div>
+            </div>
+        </div>
+
     </div>
-    <div class="input-group">
-      <label for="status">目前進度：</label>
-      <input type="text" id="status" placeholder="例如：文件審核中">
-    </div>
-    <button id="addBtn">送出新增</button>
-  </div>
 
-  <h2>案件列表 (即時同步)</h2>
-  <div id="caseList">資料載入中...</div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-analytics.js";
 
-  <script type="module">
-    // 1. 引入 Firebase 核心與 Firestore 功能
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, orderBy, query } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        // Firebase 金鑰設定已為您保留
+        const firebaseConfig = {
+            apiKey: "AIzaSyDiatcf67zBQFDe47O0zQqwk9blNFP3Y7Q",
+            authDomain: "family-finance-f4077.firebaseapp.com",
+            projectId: "family-finance-f4077",
+            storageBucket: "family-finance-f4077.firebasestorage.app",
+            messagingSenderId: "533199869020",
+            appId: "1:533199869020:web:ea1e55d11f2c643cd44299",
+            measurementId: "G-1WEX2WN56Q"
+        };
 
-    // 2. ⚠️ 請將這裡替換成您自己的 Firebase 設定 ⚠️
-    const firebaseConfig = {
-      apiKey: "請貼上您的_API_KEY",
-      authDomain: "請貼上您的_PROJECT_ID.firebaseapp.com",
-      projectId: "請貼上您的_PROJECT_ID",
-      storageBucket: "請貼上您的_PROJECT_ID.appspot.com",
-      messagingSenderId: "請貼上您的_SENDER_ID",
-      appId: "請貼上您的_APP_ID"
-    };
+        const app = initializeApp(firebaseConfig);
+        const analytics = getAnalytics(app);
+        const db = getFirestore(app); 
+        
+        document.getElementById('inputDate').valueAsDate = new Date();
 
-    // 3. 初始化 Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        let pieChart;
+        const ctx = document.getElementById('expensePieChart').getContext('2d');
+        const initChart = () => {
+            pieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['食', '衣', '住', '行', '育樂'],
+                    datasets: [{
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        };
+        initChart();
 
-    // 指定要操作的資料表名稱為 "cases"
-    const casesRef = collection(db, "cases");
-    // 設定查詢條件（選用）：依據新增時間排序
-    const q = query(casesRef, orderBy("createdAt", "desc"));
+        // 寫入資料庫邏輯（包含收支類型）
+        document.getElementById('expenseForm').addEventListener('submit', async (e) => {
+            e.preventDefault(); 
+            const date = document.getElementById('inputDate').value;
+            const type = document.getElementById('inputType').value; // 取得收支類型
+            const member = document.getElementById('inputMember').value;
+            const category = document.getElementById('inputCategory').value;
+            const amount = Number(document.getElementById('inputAmount').value);
+            const desc = document.getElementById('inputDesc').value;
 
-    // 4. 【核心功能】即時監聽畫面 (onSnapshot)
-    const caseListDiv = document.getElementById("caseList");
-    
-    onSnapshot(q, (snapshot) => {
-      // 只要資料庫有變動，這裡就會執行。首先清空畫面。
-      caseListDiv.innerHTML = ""; 
-      
-      if (snapshot.empty) {
-        caseListDiv.innerHTML = "<p>目前尚無案件資料。</p>";
-        return;
-      }
-
-      // 將最新資料一筆一筆畫到畫面上
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const card = document.createElement("div");
-        card.className = "case-card";
-        card.innerHTML = `
-          <h3>${data.employerName || "未命名雇主"}</h3>
-          <p><strong>進度：</strong> ${data.currentStatus || "無狀態"}</p>
-          <span>資料 ID: ${doc.id}</span>
-        `;
-        caseListDiv.appendChild(card);
-      });
-    });
-
-    // 5. 【核心功能】點擊按鈕新增資料
-    const addBtn = document.getElementById("addBtn");
-    addBtn.addEventListener("click", async () => {
-      const employerInput = document.getElementById("employer").value;
-      const statusInput = document.getElementById("status").value;
-
-      if (!employerInput || !statusInput) {
-        alert("請完整輸入雇主名稱與進度！");
-        return;
-      }
-
-      // 為了避免重複點擊，先將按鈕暫停
-      addBtn.disabled = true;
-      addBtn.innerText = "新增中...";
-
-      try {
-        // 將資料寫入 Firestore
-        await addDoc(casesRef, {
-          employerName: employerInput,
-          currentStatus: statusInput,
-          createdAt: serverTimestamp() // 自動寫入伺服器時間
+            try {
+                await addDoc(collection(db, "expenses"), {
+                    date: date,
+                    type: type, // 寫入收支類型
+                    member: member,
+                    category: category,
+                    amount: amount,
+                    description: desc,
+                    timestamp: new Date()
+                });
+                
+                // 新增後只清空金額與備註，方便連續記帳
+                document.getElementById('inputAmount').value = ''; 
+                document.getElementById('inputDesc').value = ''; 
+            } catch (error) {
+                console.error("寫入錯誤: ", error);
+                alert('新增失敗。請確認 Firebase 權限設定。');
+            }
         });
 
-        // 成功後清空輸入框
-        document.getElementById("employer").value = "";
-        document.getElementById("status").value = "";
-      } catch (error) {
-        console.error("寫入失敗:", error);
-        alert("新增失敗，請檢查主控台 (Console) 錯誤訊息。");
-      } finally {
-        // 恢復按鈕狀態
-        addBtn.disabled = false;
-        addBtn.innerText = "送出新增";
-      }
-    });
-  </script>
+        // 即時監聽與結餘計算邏輯
+        const setupRealtimeListener = () => {
+            const q = query(collection(db, "expenses"));
+            
+            onSnapshot(q, (snapshot) => {
+                const currentMonth = new Date().toISOString().slice(0, 7); 
+                
+                // 初始化總收入與總支出
+                let totalIncome = 0;
+                let totalExpense = 0;
+
+                let sums = { 共同支出: 0, 爸爸: 0, 媽媽: 0, 姐姐: 0, 弟弟: 0 };
+                let catSums = { '食': 0, '衣': 0, '住': 0, '行': 0, '育樂': 0 };
+
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    if (data.date && data.date.startsWith(currentMonth)) {
+                        
+                        // 判斷收入或支出
+                        if (data.type === '收入') {
+                            totalIncome += data.amount;
+                        } else {
+                            // 預設為支出，將金額加到總支出、成員與分類中
+                            totalExpense += data.amount;
+                            if (sums[data.member] !== undefined) sums[data.member] += data.amount;
+                            if (catSums[data.category] !== undefined) catSums[data.category] += data.amount;
+                        }
+                    }
+                });
+
+                // 計算並更新結餘畫面
+                const currentBalance = totalIncome - totalExpense;
+                const balanceElement = document.getElementById('currentBalance');
+                balanceElement.innerText = `NT$ ${currentBalance.toLocaleString()}`;
+                
+                // 結餘為負數時顯示紅色警告，正數為預設綠色
+                balanceElement.style.color = currentBalance < 0 ? '#e74c3c' : '#1abc9c';
+
+                // 更新支出畫面
+                document.getElementById('totalCommon').innerText = `NT$ ${sums['共同支出'].toLocaleString()}`;
+                document.getElementById('totalDad').innerText = `NT$ ${sums['爸爸'].toLocaleString()}`;
+                document.getElementById('totalMom').innerText = `NT$ ${sums['媽媽'].toLocaleString()}`;
+                document.getElementById('totalSister').innerText = `NT$ ${sums['姐姐'].toLocaleString()}`;
+                document.getElementById('totalBrother').innerText = `NT$ ${sums['弟弟'].toLocaleString()}`;
+
+                pieChart.data.datasets[0].data = [catSums['食'], catSums['衣'], catSums['住'], catSums['行'], catSums['育樂']];
+                pieChart.update();
+            });
+        };
+
+        setupRealtimeListener();
+    </script>
 </body>
 </html>
