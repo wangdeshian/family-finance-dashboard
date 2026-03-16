@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭財務紀錄儀表板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 基礎全域設定 */
+        body {
+            font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+            background-color: #f4f7f6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            display: flex;
+            justify-content: center;
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1000px; /* 限制最大寬度，保持版面集中 */
+            display: flex;
+            flex-direction: column;
+            gap: 30px; /* 各區塊之間的間距 */
+        }
+
+        /* 卡片共用樣式：白底、圓角、陰影 */
+        .card {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            padding: 25px;
+            box-sizing: border-box;
+            transition: transform 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 15px;
+            margin-top: 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .amount {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        /* 頂部：家庭共同支出 */
+        .top-section {
+            width: 100%;
+            text-align: center;
+            border-left: 8px solid #4CAF50; /* 加上顏色飾條增添質感 */
+        }
+
+        /* 中間：四位家庭成員的支出 */
+        .middle-section {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 切成均等的四個欄位 */
+            gap: 20px;
+        }
+
+        .member-card {
+            text-align: center;
+        }
+        
+        /* 為每個成員加上不同的顏色飾條 */
+        .member-dad { border-top: 5px solid #3498db; }
+        .member-mom { border-top: 5px solid #e74c3c; }
+        .member-sister { border-top: 5px solid #f1c40f; }
+        .member-brother { border-top: 5px solid #9b59b6; }
+
+        /* 底部：圓餅圖與結餘 */
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 切成左右兩半 */
+            gap: 20px;
+            align-items: center;
+        }
+
+        .chart-container {
+            width: 100%;
+            max-width: 350px;
+            margin: 0 auto;
+        }
+
+        .balance-card {
+            text-align: center;
+            border-left: 8px solid #1abc9c;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .balance-amount {
+            font-size: 3.5rem;
+            color: #1abc9c;
+            margin-top: 10px;
+        }
+
+        /* RWD 響應式設計：在手機版時改為直排 */
+        @media (max-width: 768px) {
+            .middle-section {
+                grid-template-columns: repeat(2, 1fr); /* 平板變成 2x2 */
+            }
+            .bottom-section {
+                grid-template-columns: 1fr; /* 底部變上下排 */
+            }
+        }
+
+        @media (max-width: 480px) {
+            .middle-section {
+                grid-template-columns: 1fr; /* 手機變成全直排 */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <div class="card top-section">
+            <h2 class="card-title">家庭共同支出</h2>
+            <div class="amount">NT$ 45,000</div>
+        </div>
+
+        <div class="middle-section">
+            <div class="card member-card member-dad">
+                <h3 class="card-title">爸爸</h3>
+                <div class="amount">NT$ 12,000</div>
+            </div>
+            <div class="card member-card member-mom">
+                <h3 class="card-title">媽媽</h3>
+                <div class="amount">NT$ 15,000</div>
+            </div>
+            <div class="card member-card member-sister">
+                <h3 class="card-title">姐姐</h3>
+                <div class="amount">NT$ 8,000</div>
+            </div>
+            <div class="card member-card member-brother">
+                <h3 class="card-title">弟弟</h3>
+                <div class="amount">NT$ 5,000</div>
+            </div>
+        </div>
+
+        <div class="bottom-section">
+            <div class="card">
+                <h2 class="card-title text-center">支出分類圓餅圖</h2>
+                <div class="chart-container">
+                    <canvas id="expensePieChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="card balance-card">
+                <h2 class="card-title">本月總結餘</h2>
+                <div class="balance-amount">NT$ 35,000</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('expensePieChart').getContext('2d');
+            
+            // 建立圓餅圖
+            new Chart(ctx, {
+                type: 'pie', // 指定圖表類型為圓餅圖
+                data: {
+                    labels: ['食 (餐飲)', '衣 (服飾)', '住 (房租/水電)', '行 (交通)', '育樂 (休閒)'], // 分類標籤
+                    datasets: [{
+                        data: [25000, 5000, 35000, 8000, 12000], // 模擬各項目的金額數據
+                        backgroundColor: [
+                            '#FF6384', // 粉紅
+                            '#36A2EB', // 藍色
+                            '#FFCE56', // 黃色
+                            '#4BC0C0', // 湖水綠
+                            '#9966FF'  // 紫色
+                        ],
+                        borderWidth: 1 // 區塊邊框寬度
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom', // 將圖例放在底部
+                            labels: {
+                                font: {
+                                    family: "'PingFang TC', 'Microsoft JhengHei', sans-serif"
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
