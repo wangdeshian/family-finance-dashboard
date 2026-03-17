@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳</title>
+    <title>請好好記帳 - 行動優化版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -18,19 +18,22 @@
         .nav-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
         .top-bar select { padding: 6px; border-radius: 6px; border: none; font-size: 0.9rem; }
 
+        /* 快速記帳：手機排版修正 */
         .form-section { border-top: 5px solid #1a73e8; padding: 15px; }
         .form-grid { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 140px; }
+        .form-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 130px; }
         .form-group label { font-size: 0.75rem; font-weight: bold; color: #888; }
         .form-group input, .form-group select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; height: 44px; width: 100%; }
-        .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; height: 44px; flex: 1; min-width: 140px; }
+        
+        /* 特別修正日期框在手機端的尺寸 */
+        #fDate { max-width: 160px; min-width: 140px; } 
+
+        .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; height: 44px; flex: 1; min-width: 140px; margin-top: 5px; }
 
         .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 15px; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; }
         
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.9rem; width: 85px; color: #555; }
-        .cat-name-input:focus { background: #fff; outline: 1px solid #1a73e8; }
-
         .val-container { display: flex; gap: 4px; align-items: center; }
         .input-box { width: 70px; border: 1px solid #e0e0e0; text-align: right; font-weight: bold; border-radius: 6px; padding: 6px; font-size: 0.85rem; }
         
@@ -39,9 +42,8 @@
         .actual-input { background: #f8f9fa; color: #333; }
         .del-btn { color: #ccc; cursor: pointer; margin-left: 5px; font-size: 1.1rem; }
 
-        /* 修復空白問題：底部圖表與結餘配置 */
         .bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .chart-box { display: flex; flex-direction: row; gap: 10px; justify-content: space-around; align-items: center; padding: 10px; }
+        .chart-box { display: flex; flex-direction: row; gap: 10px; justify-content: space-around; align-items: center; }
         .chart-container { flex: 1; max-width: 220px; text-align: center; }
         .chart-label { font-size: 0.7rem; color: #666; margin-top: 5px; }
 
@@ -51,11 +53,14 @@
         .bal-val { font-weight: bold; font-size: 1rem; }
         .acc-bal { color: #8e44ad; font-size: 1.6rem; border-top: 1px solid #eee; padding-top: 8px; margin-top: 5px; }
 
-        @media (max-width: 850px) { 
-            .bottom-grid { grid-template-columns: 1fr; } 
-            .chart-box { flex-direction: row; }
+        .history-table td input[type="date"] { border: 1px solid #ddd; border-radius: 4px; padding: 4px; font-size: 0.8rem; color: #555; background: transparent; }
+
+        @media (max-width: 850px) { .bottom-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { 
+            .middle-section { grid-template-columns: 1fr; }
+            .form-grid { flex-direction: column; align-items: stretch; }
+            #fDate { max-width: 100%; width: 100%; }
         }
-        @media (max-width: 600px) { .middle-section { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -78,7 +83,7 @@
                 <div class="form-group"><label>成員</label><select id="fMember" onchange="updateCategoryDropdown()"></select></div>
                 <div class="form-group"><label>分類</label><select id="fCat" required></select></div>
                 <div class="form-group"><label>金額</label><input type="number" id="fAmt" required></div>
-                <button type="submit" class="submit-btn">儲存流水帳</button>
+                <button type="submit" class="submit-btn">儲存</button>
             </form>
         </div>
 
@@ -99,7 +104,7 @@
             </div>
         </div>
 
-        <div class="card" style="min-height: auto;"><div class="card-title">本月流水帳紀錄</div><div style="overflow-x:auto"><table style="width:100%; border-collapse:collapse; font-size:0.8rem;"><tbody id="historyTbody"></tbody></table></div></div>
+        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">本月流水帳紀錄</div><div style="overflow-x:auto"><table style="width:100%; border-collapse:collapse; font-size:0.8rem;"><tbody id="historyTbody"></tbody></table></div></div>
     </div>
 
     <script type="module">
@@ -173,7 +178,11 @@
         window.updateCategoryDropdown = () => {
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
-            const dynamicCats = Object.values(allBudgets).filter(b => b.month === currentMonth && b.member === m && b.type === t).map(b => b.category);
+            // 抓取當月資料庫中該成員的所有自訂預算名稱
+            const dynamicCats = Object.values(allBudgets)
+                .filter(b => b.month === currentMonth && b.member === m && b.type === t)
+                .map(b => b.category);
+            
             const defMap = {
                 '爸爸': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
                 '媽媽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
@@ -184,6 +193,7 @@
             const finalCats = [...new Set([...(defMap[m][t] || []), ...dynamicCats])];
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
+        document.getElementById('fType').addEventListener('change', updateCategoryDropdown);
 
         const getPrevMonth = (mStr) => {
             let [y, m] = mStr.split('-').map(Number);
@@ -202,11 +212,12 @@
                 else { actE += d.amount; (target.支出[d.category] = target.支出[d.category] || []).push({id: d.id, v: d.amount}); pieActData[d.category] = (pieActData[d.category] || 0) + d.amount; }
             });
 
+            // 累積緩衝金計算：防呆處理
             const allMonths = [...new Set([...allData.map(d => d.date.slice(0,7)), ...Object.values(allBudgets).map(b => b.month)])].sort();
             allMonths.forEach(m => {
                 let mEstI = 0, mEstE = 0, mActI = 0, mActE = 0;
                 allData.filter(d => d.date.startsWith(m)).forEach(d => { if(d.type==='收入') mActI += d.amount; else mActE += d.amount; });
-                Object.values(allBudgets).filter(b => b.month === m).forEach(b => { if(b.type==='收入') mEstI += b.amount; else mEstE += b.amount; });
+                Object.values(allBudgets).filter(b => b.month === m).forEach(b => { if(b.type==='收入') mEstI += (b.amount || 0); else mEstE += (b.amount || 0); });
                 totalAccBuffer += (mEstI - mActI) - (mEstE - mActE);
             });
 
@@ -230,11 +241,13 @@
                         const actSum = logs.reduce((a,b)=>a+b.v, 0);
                         const bId = `${currentMonth}_${m}_${cat}`;
                         
-                        // 【全自動繼承：名稱與金額】
+                        // 智慧繼承邏輯：如果當月沒存預算，自動追蹤歷史預算
                         let estSum = allBudgets[bId]?.amount;
                         if (estSum === undefined) {
-                            const prevBId = `${getPrevMonth(currentMonth)}_${m}_${cat}`;
-                            estSum = allBudgets[prevBId]?.amount || 0;
+                            const monthsSorted = Object.values(allBudgets)
+                                .filter(b => b.member === m && b.category === cat)
+                                .sort((a,b) => b.month.localeCompare(a.month));
+                            estSum = monthsSorted.length > 0 ? monthsSorted[0].amount : 0;
                         }
 
                         if(s.k === '收入') estI += estSum; else { estE += estSum; pieBudData[cat] = (pieBudData[cat] || 0) + estSum; }
@@ -251,7 +264,7 @@
                                 </div>
                             </div>`;
                     });
-                    items += `<div class="card-footer-add"><div class="add-row"><input type="text" id="cAddCat-${m}-${s.k}" placeholder="自訂${s.t}"><input type="number" id="cAddAmt-${m}-${s.k}" placeholder="預估金額"><button class="card-add-btn" onclick="saveBudget('${m}','${s.k}', document.getElementById('cAddCat-${m}-${s.k}').value, 'amount', document.getElementById('cAddAmt-${m}-${s.k}').value)">加</button></div></div>`;
+                    items += `<div class="card-footer-add"><div class="add-row"><input type="text" id="cAddCat-${m}-${s.k}" placeholder="自訂${s.t}"><input type="number" id="cAddAmt-${m}-${s.k}" placeholder="預估金"><button class="card-add-btn" onclick="saveBudget('${m}','${s.k}', document.getElementById('cAddCat-${m}-${s.k}').value, 'amount', document.getElementById('cAddAmt-${m}-${s.k}').value)">加</button></div></div>`;
                 });
                 html += `<div class="card"><div class="card-title">${m === '共同支出' ? '🏠 共同收入/支出' : m}</div>${items}</div>`;
             });
@@ -260,6 +273,7 @@
             document.getElementById('actBal').innerText = `NT$ ${(actI - actE).toLocaleString()}`;
             document.getElementById('accBal').innerText = `NT$ ${totalAccBuffer.toLocaleString()}`;
             
+            document.getElementById('historyTitle').innerText = `${currentMonth} 流水帳紀錄`;
             document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `
                 <tr>
                     <td style="padding:5px"><input type="date" style="border:none;background:transparent" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td>
