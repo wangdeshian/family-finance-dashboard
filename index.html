@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 家庭正名版</title>
+    <title>請好好記帳 - 刪除功能終極修正版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -16,7 +16,7 @@
         .save-target-row { display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; gap: 8px; justify-content: center; }
         .save-input { width: 100px; background: #fff; border: none; border-radius: 4px; padding: 4px 8px; font-weight: bold; text-align: right; color: #2c3e50; }
         .month-nav { display: flex; align-items: center; gap: 4px; }
-        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         .top-bar select { padding: 5px; border-radius: 6px; border: none; font-size: 0.85rem; background: #fff; }
         .form-section { border-top: 5px solid #1a73e8; }
         .form-grid { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -28,13 +28,11 @@
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eee; width: 100%; gap: 4px; }
         .name-area { display: flex; align-items: center; flex: 1; min-width: 0; gap: 2px; } 
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.85rem; width: 100%; color: #555; outline: none; padding: 2px; }
-        .cat-name-input:focus { background: #f0f7ff; border-radius: 4px; }
         .val-container { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
         .input-box { width: 60px; border: 1px solid #e0e0e0; text-align: right; font-weight: bold; border-radius: 6px; padding: 4px; font-size: 0.8rem; }
         .budget-warning { color: #e74c3c !important; border-color: #ffcdd2 !important; background: #fff5f5 !important; }
         .budget-safe { color: #27ae60 !important; border-color: #c8e6c9 !important; background: #fafffa !important; }
         .actual-input { background: #f8f9fa; color: #333; }
-        .del-btn { color: #ccc; cursor: pointer; font-size: 1rem; padding: 2px; flex-shrink: 0; }
         .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 0.9rem; flex-shrink: 0; font-weight: bold; padding: 0 4px; }
         .inline-add-box { margin-top: 6px; display: flex; gap: 4px; padding: 4px 0; }
         .inline-add-box input { border: 1px solid #eee; border-radius: 6px; padding: 6px; font-size: 0.75rem; }
@@ -44,13 +42,9 @@
         .bottom-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; }
         .chart-box { display: flex; flex-direction: row; gap: 5px; justify-content: space-around; padding: 8px; }
         .chart-container { flex: 1; max-width: 150px; text-align: center; }
-        .chart-label { font-size: 0.6rem; color: #666; margin-top: 2px; }
         .bal-card { padding: 10px; border-left: 6px solid #1a73e8; }
         .bal-row { display: flex; justify-content: space-between; margin-bottom: 2px; align-items: center; }
-        .bal-label { font-size: 0.75rem; color: #666; }
-        .bal-val { font-weight: bold; font-size: 0.85rem; }
         .acc-bal { color: #8e44ad; font-size: clamp(1rem, 4vw, 1.4rem); border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px; }
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
         @media (max-width: 600px) {
             .middle-section { grid-template-columns: 1fr; }
             .bottom-grid { grid-template-columns: 1fr; }
@@ -59,7 +53,6 @@
     </style>
 </head>
 <body>
-
     <div class="dashboard-container">
         <div class="top-bar">
             <div class="top-row">
@@ -92,20 +85,17 @@
 
         <div class="bottom-grid">
             <div class="card chart-box">
-                <div class="chart-container"><canvas id="pieBudget"></canvas><div class="chart-label">預估</div></div>
-                <div class="chart-container"><canvas id="pieActual"></canvas><div class="chart-label">實際</div></div>
+                <div class="chart-container"><canvas id="pieBudget"></canvas><div style="font-size:0.6rem">預估</div></div>
+                <div class="chart-container"><canvas id="pieActual"></canvas><div style="font-size:0.6rem">實際</div></div>
             </div>
             <div class="card bal-card">
-                <div class="bal-row"><span class="bal-label">預估節餘</span><span class="bal-val" id="estBal">0</span></div>
-                <div class="bal-row"><span class="bal-label">實際結餘 (扣存後)</span><span class="bal-val" id="actBal">0</span></div>
-                <div class="bal-row" style="flex-direction: column; align-items: flex-start;">
-                    <span class="bal-label">累積緩衝 (待付累計)</span>
-                    <span class="bal-val acc-bal" id="accBal">NT$ 0</span>
-                </div>
+                <div class="bal-row"><span style="font-size:0.7rem">預估節餘</span><span id="estBal" style="font-weight:bold">0</span></div>
+                <div class="bal-row"><span style="font-size:0.7rem">實際結餘 (扣存後)</span><span id="actBal" style="font-weight:bold">0</span></div>
+                <div class="acc-bal" id="accBal">NT$ 0</div>
             </div>
         </div>
 
-        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">流水帳紀錄</div><div style="overflow-x:auto"><table class="history-table"><tbody id="historyTbody"></tbody></table></div></div>
+        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">流水帳紀錄</div><div style="overflow-x:auto"><table style="width:100%; border-collapse:collapse; font-size:0.75rem;"><tbody id="historyTbody"></tbody></table></div></div>
     </div>
 
     <script type="module">
@@ -125,8 +115,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         let pieB, pieA, allData = [], allBudgets = {}, currentMonth = new Date().toISOString().slice(0,7);
-        
-        // 【正名更新：替換成員名單】
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
 
         const initCharts = () => {
@@ -138,10 +126,27 @@
 
         window.saveDate = async (id, newDate) => { if (id && newDate) await updateDoc(doc(db, "expenses", id), { date: newDate }); };
 
-        window.saveBudget = async (member, type, originalCategory, field, value) => {
+        // 【修正核心：徹底刪除邏輯】
+        window.deleteCategory = async (member, type, category, ask = true) => {
+            if (ask && !confirm(`確定要完全刪除「${category}」嗎？`)) return;
+            
+            // 1. 生成精確 ID 並刪除預算標籤
+            const budgetId = `${currentMonth}_${member}_${category}`;
+            await deleteDoc(doc(db, "budgets", budgetId));
+            
+            // 2. 刪除該月份相關的所有流水帳
+            const q = query(collection(db, "expenses"), where("member", "==", member), where("category", "==", category));
+            const snap = await getDocs(q);
+            const promises = snap.docs
+                .filter(d => d.data().date.startsWith(currentMonth))
+                .map(d => deleteDoc(doc(db, "expenses", d.id)));
+            await Promise.all(promises);
+        };
+
+        window.saveBudget = async (member, type, category, field, value) => {
             if (field === 'name') {
-                if (value === originalCategory) return;
-                const oldId = `${currentMonth}_${member}_${originalCategory}`;
+                if (value === category || !value) return;
+                const oldId = `${currentMonth}_${member}_${category}`;
                 const newId = `${currentMonth}_${member}_${value}`;
                 const oldDoc = await getDocs(query(collection(db, "budgets"), where("__name__", "==", oldId)));
                 const oldD = oldDoc.docs[0]?.data() || { amount: 0 };
@@ -149,9 +154,11 @@
                 await deleteDoc(doc(db, "budgets", oldId));
             } else {
                 const numVal = Math.round(Number(value)) || 0;
-                const budgetId = `${currentMonth}_${member}_${originalCategory}`;
-                if (numVal === 0) { await deleteCategory(member, type, originalCategory, false); }
-                else { await setDoc(doc(db, "budgets", budgetId), { month: currentMonth, member, type, category: originalCategory, amount: numVal }, { merge: true }); }
+                if (numVal === 0) {
+                    await deleteCategory(member, type, category, false);
+                } else {
+                    await setDoc(doc(db, "budgets", `${currentMonth}_${member}_${category}`), { month: currentMonth, member, type, category, amount: numVal }, { merge: true });
+                }
             }
         };
 
@@ -167,19 +174,10 @@
 
         window.updateSaveTarget = async (val) => { await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(val) || 0 }); };
 
-        window.deleteCategory = async (member, type, category, ask = true) => {
-            if (ask && !confirm(`確定從「${currentMonth}」移除「${category}」？`)) return;
-            await deleteDoc(doc(db, "budgets", `${currentMonth}_${member}_${category}`));
-            const q = query(collection(db, "expenses"), where("member", "==", member), where("category", "==", category));
-            const snap = await getDocs(q);
-            const promises = snap.docs.filter(d => d.data().date.startsWith(currentMonth)).map(d => deleteDoc(doc(db, "expenses", d.id)));
-            await Promise.all(promises);
-        };
-
         window.cardAddProject = async (m, t) => {
             const nameEl = document.getElementById(`cAddCat-${m}-${t}`);
             const amtEl = document.getElementById(`cAddAmt-${m}-${t}`);
-            if (!nameEl.value || !amtEl.value) return alert("請填寫名稱與預估金額");
+            if (!nameEl.value || !amtEl.value) return;
             await saveBudget(m, t, nameEl.value, 'amount', amtEl.value);
             nameEl.value = ''; amtEl.value = '';
         };
@@ -196,10 +194,7 @@
             onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => { allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() })); updateMonthSelector(); render(); });
             onSnapshot(query(collection(db, "settings")), (snap) => { 
                 const s = snap.docs.find(d => d.id === `${currentMonth}_save`)?.data();
-                if (!s) {
-                    const lastSave = snap.docs.filter(d => d.id.includes('_save')).sort((a,b) => b.id.localeCompare(a.id))[0]?.data();
-                    document.getElementById('saveTargetInput').value = lastSave?.target || 0;
-                } else { document.getElementById('saveTargetInput').value = s.target || 0; }
+                document.getElementById('saveTargetInput').value = s ? s.target : 0;
                 render(); 
             });
         };
@@ -239,6 +234,7 @@
                 else { actE += amt; (target.支出[d.category] = target.支出[d.category] || []).push({id: d.id, v: amt}); pieActData[d.category] = (pieActData[d.category] || 0) + amt; }
             });
 
+            // 緩衝金計算
             const allMonthsInDb = [...new Set([...allData.map(d => d.date.slice(0,7)), ...Object.values(allBudgets).map(b => b.month)])].sort();
             allMonthsInDb.forEach(m => {
                 let mEstI = 0, mEstE = 0, mActI = 0, mActE = 0;
@@ -270,7 +266,7 @@
                         let estSum = allBudgets[bId]?.amount;
                         if (estSum === undefined) {
                             const hist = Object.values(allBudgets).filter(b => b.member === m && b.category === cat).sort((a,b) => b.month.localeCompare(a.month));
-                            estSum = hist.length > 0 ? Number(hist[0].amount) || 0 : 0;
+                            estSum = hist.length > 0 ? Math.round(Number(hist[0].amount)) || 0 : 0;
                         }
                         if(s.k === '收入') estI += estSum; else { estE += estSum; pieBudData[cat] = (pieBudData[cat] || 0) + estSum; }
                         let colorClass = (s.k === '支出' && actSum > estSum) || (s.k === '收入' && actSum < estSum) ? 'budget-warning' : 'budget-safe';
@@ -294,14 +290,14 @@
             const actBalTotal = Math.round(actI - actE - curSave);
             document.getElementById('actBal').innerText = `NT$ ${actBalTotal.toLocaleString()}`;
             document.getElementById('actBal').style.color = actBalTotal < 0 ? '#e74c3c' : '#27ae60';
-            document.getElementById('accBal').innerText = `NT$ ${Math.round(totalAccBuffer).toLocaleString()}`;
+            document.getElementById('accBal').innerText = `累積緩衝: NT$ ${Math.round(totalAccBuffer).toLocaleString()}`;
             document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `<tr><td style="padding:10px 0"><input type="date" style="border:none;background:transparent;width:110px;" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td>${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b class="del-btn" onclick="delItem('${d.id}')">×</b></td></tr>`).join('');
             pieB.data.labels = Object.keys(pieBudData); pieB.data.datasets[0].data = Object.values(pieBudData); pieB.update();
             pieA.data.labels = Object.keys(pieActData); pieA.data.datasets[0].data = Object.values(pieActData); pieA.update();
             updateCategoryDropdown();
         };
 
-        window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
+        window.delItem = async (id) => { if(confirm("確定刪除這筆紀錄？")) await deleteDoc(doc(db, "expenses", id)); };
         document.getElementById('mainForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await addDoc(collection(db, "expenses"), { date: document.getElementById('fDate').value, type: document.getElementById('fType').value, member: document.getElementById('fMember').value, category: document.getElementById('fCat').value, amount: Math.round(Number(document.getElementById('fAmt').value)), timestamp: new Date() });
