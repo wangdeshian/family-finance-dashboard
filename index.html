@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 最終確定版</title>
+    <title>請好好記帳 - 數據穩定版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -38,7 +38,6 @@
         .budget-safe { color: #27ae60 !important; border-color: #c8e6c9 !important; background: #fafffa !important; }
         .actual-input { background: #f8f9fa; color: #333; }
         .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 1rem; flex-shrink: 0; font-weight: bold; padding: 0 4px; }
-        /* 修正按鈕跑出去的問題 */
         .inline-add-box { margin-top: 8px; display: flex; gap: 4px; width: 100%; align-items: center; }
         .inline-add-name { flex: 2; min-width: 0; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 0.8rem; }
         .inline-add-amt { flex: 1; min-width: 0; border: 1px solid #eee; border-radius: 8px; padding: 8px; font-size: 0.8rem; text-align: right; }
@@ -61,7 +60,7 @@
             </div>
             <div class="save-target-row">
                 <span>💰 本月存款目標：</span>
-                <input type="number" id="saveTargetInput" class="save-input" onfocus="this.select()" onblur="updateSaveTarget(this.value)">
+                <input type="number" id="saveTargetInput" class="save-input" onfocus="this.select(); isEditing=true;" onblur="updateSaveTarget(this.value)">
             </div>
         </div>
 
@@ -80,7 +79,7 @@
         <div class="middle-section" id="cardsContainer"></div>
 
         <div class="card" style="margin-top:10px; display:flex; flex-direction: row; justify-content: space-around; text-align: center; padding: 15px;">
-            <div><div style="font-size:0.7rem; color:#888;">本月預算剩餘</div><div id="estBal" style="font-weight:bold; font-size:1.1rem; color:#2c3e50;">0</div></div>
+            <div><div style="font-size:0.7rem; color:#888;">預算剩餘</div><div id="estBal" style="font-weight:bold; font-size:1.1rem; color:#2c3e50;">0</div></div>
             <div><div style="font-size:0.7rem; color:#888;">手頭餘額 (扣存後)</div><div id="actBal" style="font-weight:bold; font-size:1.1rem; color:#1a73e8;">0</div></div>
         </div>
 
@@ -104,7 +103,8 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         let allData = [], allBudgets = {}, currentMonth = new Date().toISOString().slice(0,7);
-        let isEditing = false; // 輸入鎖機制
+        let isEditing = false;
+        let saveTargetMap = {}; // 用於存儲各月份的存款目標
 
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
         const defMap = { '王得賢': { 收入: ['薪資','股票'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '蔡書瑜': { 收入: ['薪資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王婕恩': { 支出: ['學費'] }, '王予陽': { 支出: ['學費'] }, '共同支出': { 收入: ['獎金'], 支出: ['房租','水電瓦斯','其他'] } };
@@ -125,7 +125,6 @@
             await setDoc(doc(db, "budgets", budgetId), { month: currentMonth, member, type, category, amount: 0, isDeleted: true }, { merge: true });
         };
 
-        // 【救援邏輯】：手動新增時強制把 isDeleted 設為 false
         window.saveBudget = async (member, type, category, field, value) => {
             isEditing = false;
             const budgetId = `${currentMonth}_${member}_${category}`;
@@ -154,7 +153,13 @@
             await Promise.all(promises);
         };
 
-        window.updateSaveTarget = async (val) => { await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(val) || 0 }); };
+        // 【修正：存款目標更新】
+        window.updateSaveTarget = async (val) => {
+            isEditing = false;
+            const numVal = Number(val) || 0;
+            await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: numVal }, { merge: true });
+        };
+
         window.saveDate = async (id, newDate) => { if (id && newDate) await updateDoc(doc(db, "expenses", id), { date: newDate }); };
         window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
         window.changeMonth = (offset) => { let [y, m] = currentMonth.split('-').map(Number); m += offset; if (m > 12) { y++; m = 1; } if (m < 1) { y--; m = 12; } currentMonth = `${y}-${String(m).padStart(2, '0')}`; render(); updateMonthSelector(); };
@@ -162,7 +167,12 @@
         const setup = () => {
             onSnapshot(query(collection(db, "budgets")), (snap) => { allBudgets = {}; snap.forEach(d => allBudgets[d.id] = d.data()); if(!isEditing) render(); updateCategoryDropdown(); });
             onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => { allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() })); updateMonthSelector(); if(!isEditing) render(); });
-            onSnapshot(query(collection(db, "settings")), (snap) => { if(!isEditing) render(); });
+            // 【修正：存款目標即時監聽】
+            onSnapshot(query(collection(db, "settings")), (snap) => { 
+                saveTargetMap = {};
+                snap.forEach(d => { if(d.id.includes('_save')) saveTargetMap[d.data().month] = d.data().target; });
+                if(!isEditing) render(); 
+            });
             document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
         };
 
@@ -185,7 +195,9 @@
                 else { actE += amt; target.支出[d.category] = (target.支出[d.category] || 0) + amt; }
             });
 
-            const sTarget = Number(document.getElementById('saveTargetInput').value) || 0;
+            // 【修正：回填存款目標輸入框】
+            const currentSaveTarget = saveTargetMap[currentMonth] || 0;
+            document.getElementById('saveTargetInput').value = currentSaveTarget;
 
             let html = '';
             members.forEach(m => {
@@ -196,16 +208,16 @@
                     allCats.sort((a,b) => (Object.values(allBudgets).find(o => o.month === currentMonth && o.member === m && o.category === a)?.order ?? 999) - (Object.values(allBudgets).find(o => o.month === currentMonth && o.member === m && o.category === b)?.order ?? 999));
                     
                     let itemsHtml = '';
-                    allCats.forEach(cat => {
+                    cats.forEach(cat => {
                         const bDoc = Object.values(allBudgets).find(b => b.month === currentMonth && b.member === m && b.category === cat);
                         if (bDoc?.isDeleted) return;
                         const aSum = results[m][k][cat] || 0;
                         let eSum = bDoc?.amount;
-                        if (eSum === undefined) { const hist = Object.values(allBudgets).filter(b => b.member === m && b.category === cat && !b.isDeleted).sort((a,b) => b.month.localeCompare(a.month)); eSum = hist.length > 0 ? Number(hist[0].amount) || 0 : 0; }
+                        if (eSum === undefined) { const hist = Object.values(allBudgets).filter(b => b.member === m && b.category === cat && !b.isDeleted).sort((a,b) => b.month.localeCompare(a.month)); eSum = h.length > 0 ? Number(hist[0].amount) || 0 : 0; }
                         sEst += eSum; sAct += aSum;
                         if(k === '收入') estI += eSum; else estE += eSum;
                         let colorClass = (k === '支出' && aSum > eSum) || (k === '收入' && aSum < eSum) ? 'budget-warning' : 'budget-safe';
-                        itemsHtml += `<div class="item-row" data-cat="${cat}"><span class="handle">〓</span><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${k}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${m}','${k}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${colorClass}" value="${eSum}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${m}','${k}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${aSum}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${m}', '${k}', '${cat}', this.value, ${aSum})" onkeydown="if(event.key==='Enter') this.blur()"></div></div>`;
+                        itemsHtml += `<div class="item-row" data-cat="${cat}"><span class="handle">〓</span><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${k}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${m}','${k}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${colorClass}" value="${eSum}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${m}','${k}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${actSum}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${m}', '${k}', '${cat}', this.value, ${aSum})" onkeydown="if(event.key==='Enter') this.blur()"></div></div>`;
                     });
                     cardBody += `<div class="item-list" id="list-${m.replace(/\s+/g, '')}-${k}">${itemsHtml}</div>`;
                     cardBody += `<div class="subtotal-row"><span style="padding-left:28px">${k}小計:</span><div class="val-container"><div class="input-box" style="border:none;background:transparent">${sEst.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8">${sAct.toLocaleString()}</div></div></div>`;
@@ -215,7 +227,7 @@
             });
             document.getElementById('cardsContainer').innerHTML = html;
             document.getElementById('estBal').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
-            document.getElementById('actBal').innerText = `NT$ ${Math.round(actI - actE - sTarget).toLocaleString()}`;
+            document.getElementById('actBal').innerText = `NT$ ${Math.round(actI - actE - currentSaveTarget).toLocaleString()}`;
             document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `<tr><td style="padding:8px 4px"><input type="date" class="history-date-input" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#ccc;padding:0 5px">×</b></td></tr>`).join('');
             members.forEach(m => ['收入','支出'].forEach(t => { const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${t}`); if(el) Sortable.create(el, { handle:'.handle', animation:150, onEnd:()=>saveOrder(m,t,Array.from(el.children).map(r=>r.getAttribute('data-cat'))) }); }));
         };
@@ -230,7 +242,8 @@
 
         document.getElementById('mainForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            await addDoc(collection(db, "expenses"), { date: document.getElementById('fDate').value, type: document.getElementById('fType').value, member: document.getElementById('fMember').value, category: document.getElementById('fCat').value, amount: Math.round(Number(document.getElementById('fAmt').value)), timestamp: new Date() });
+            const amount = Math.round(Number(document.getElementById('fAmt').value));
+            await addDoc(collection(db, "expenses"), { date: document.getElementById('fDate').value, type: document.getElementById('fType').value, member: document.getElementById('fMember').value, category: document.getElementById('fCat').value, amount, timestamp: new Date() });
             document.getElementById('fAmt').value = '';
         });
         setup();
