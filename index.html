@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 佈局完美修復版</title>
+    <title>請好好記帳 - 時空鎖定修復版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -50,7 +50,6 @@
         .inline-add-amt { flex: 1; min-width: 0; border: 1px solid #ddd !important; padding: 10px !important; border-radius: 10px !important; text-align: right; background: #fff !important; font-size: 0.9rem !important; }
         .inline-add-btn { background: #1a73e8; border: none; border-radius: 10px; width: 45px; height: 45px; color: white; cursor: pointer; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
-        /* ★★★ 圖表佈局修復：移除 min-height，增加置中 ★★★ */
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
         .chart-box { display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 15px 10px; gap: 5px; }
         .chart-container { flex: 1; max-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -68,7 +67,7 @@
                 <strong>🚀 佈局完美修復版</strong>
                 <div class="month-nav">
                     <button class="nav-btn" onclick="changeMonth(-1)">◀</button>
-                    <select id="monthSelect" class="month-select-style" onchange="currentMonth = this.value; render();"></select>
+                    <select id="monthSelect" class="month-select-style" onchange="currentMonth = this.value; window.syncDateInput(); render();"></select>
                     <button class="nav-btn" onclick="changeMonth(1)">▶</button>
                 </div>
             </div>
@@ -128,7 +127,6 @@
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
         const defMap = { '王得賢': { 收入: ['薪資','股票'], 支出: ['貸款','信用卡','加油費'] }, '蔡書瑜': { 收入: ['薪資'], 支出: ['信用卡','加油費'] }, '王婕恩': { 支出: ['學費'] }, '王予陽': { 支出: ['學費'] }, '共同支出': { 收入: ['獎金'], 支出: ['房租','水電瓦斯'] } };
 
-        // ★★★ 比例校正：啟用 maintainAspectRatio 與 aspectRatio: 1 ★★★
         const initCharts = () => {
             const opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true, aspectRatio: 1, layout: { padding: 0 } };
             const ctxB = document.getElementById('pieBudget').getContext('2d');
@@ -159,11 +157,19 @@
             await setDoc(doc(db, "budgets", bId), { month: currentMonth, member: m, type: t, category: c, [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, isDeleted: false }, { merge: true });
         };
 
+        // ★★★ 跨月污染修復核心 ★★★
         window.saveActualDirect = async (m, t, c, v, cur) => {
             isEditing = false;
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
-            await addDoc(collection(db, "expenses"), { date: new Date().toISOString().slice(0,10), type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
+            
+            // 智能鎖定日期：確保實際輸入綁定於當前查看的月份
+            let targetDate = document.getElementById('fDate').value;
+            if (!targetDate.startsWith(currentMonth)) {
+                targetDate = currentMonth + "-01"; // 強制鎖定在該月1號
+            }
+
+            await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
         };
 
         window.saveOrder = async (m, t, list) => {
@@ -174,7 +180,25 @@
         window.updateSaveTarget = async (v) => { isEditing = false; await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(v) || 0 }, { merge: true }); };
         window.saveDate = async (id, d) => { if (id && d) await updateDoc(doc(db, "expenses", id), { date: d }); };
         window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
-        window.changeMonth = (o) => { let [y, m] = currentMonth.split('-').map(Number); m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} currentMonth = `${y}-${String(m).padStart(2,'0')}`; render(); updateMonthSelector(); };
+        
+        // ★★★ 切換月份時，強制同步日期輸入框 ★★★
+        window.syncDateInput = () => {
+            const todayStr = new Date().toISOString().slice(0,10);
+            if (todayStr.startsWith(currentMonth)) {
+                document.getElementById('fDate').value = todayStr; // 現實本月，顯示今天
+            } else {
+                document.getElementById('fDate').value = currentMonth + "-01"; // 歷史/未來月份，顯示1號
+            }
+        };
+
+        window.changeMonth = (o) => { 
+            let [y, m] = currentMonth.split('-').map(Number); 
+            m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
+            currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
+            window.syncDateInput(); // 觸發同步
+            render(); 
+            updateMonthSelector(); 
+        };
 
         window.cardAddProject = async (m, t) => {
             const nameEl = document.getElementById(`cAddCat-${m}-${t}`);
@@ -191,7 +215,7 @@
             onSnapshot(query(collection(db, "budgets")), (snap) => { allBudgets = {}; snap.forEach(d => allBudgets[d.id] = d.data()); if(!isEditing) render(); updateCategoryDropdown(); });
             onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => { allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() })); updateMonthSelector(); if(!isEditing) render(); });
             onSnapshot(query(collection(db, "settings")), (snap) => { saveTargetMap = {}; snap.forEach(d => { if(d.id.includes('_save')) saveTargetMap[d.data().month] = d.data().target; }); if(!isEditing) render(); });
-            document.getElementById('fDate').value = new Date().toISOString().slice(0,10);
+            window.syncDateInput(); // 初始加載時同步日期
         };
 
         const updateMonthSelector = () => {
