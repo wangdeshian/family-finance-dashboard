@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 時空鎖定修復版</title>
+    <title>請好好記帳 - 刪除功能修復版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -40,7 +40,7 @@
         .budget-warning { color: #e74c3c !important; background: #fff5f5 !important; }
         .budget-safe { color: #27ae60 !important; background: #fafffa !important; }
         .actual-input { background: #f8f9fa; color: #333; }
-        .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 1.1rem; padding: 0 6px; flex-shrink: 0; }
+        .item-del-btn { color: #e74c3c; cursor: pointer; font-size: 1.4rem; padding-left: 6px; font-weight: bold; flex-shrink: 0; }
 
         .subtotal-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 0.8rem; color: #666; background: #fcfcfc; font-weight: bold; border-top: 1px solid #eee; }
         
@@ -145,9 +145,16 @@
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
 
+        // ★★★ 刪除功能終極修復：強制寫入完整辨識標籤 ★★★
         window.deleteCategory = async (m, t, c) => {
             if (!confirm(`確定移除「${c}」？`)) return;
-            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { isDeleted: true }, { merge: true });
+            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { 
+                month: currentMonth, 
+                member: m, 
+                type: t, 
+                category: c, 
+                isDeleted: true 
+            }, { merge: true });
         };
 
         window.saveBudget = async (m, t, c, f, v) => {
@@ -157,16 +164,14 @@
             await setDoc(doc(db, "budgets", bId), { month: currentMonth, member: m, type: t, category: c, [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, isDeleted: false }, { merge: true });
         };
 
-        // ★★★ 跨月污染修復核心 ★★★
         window.saveActualDirect = async (m, t, c, v, cur) => {
             isEditing = false;
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
             
-            // 智能鎖定日期：確保實際輸入綁定於當前查看的月份
             let targetDate = document.getElementById('fDate').value;
             if (!targetDate.startsWith(currentMonth)) {
-                targetDate = currentMonth + "-01"; // 強制鎖定在該月1號
+                targetDate = currentMonth + "-01"; 
             }
 
             await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
@@ -179,15 +184,14 @@
 
         window.updateSaveTarget = async (v) => { isEditing = false; await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(v) || 0 }, { merge: true }); };
         window.saveDate = async (id, d) => { if (id && d) await updateDoc(doc(db, "expenses", id), { date: d }); };
-        window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
+        window.delItem = async (id) => { if(confirm("確定刪除這筆紀錄？")) await deleteDoc(doc(db, "expenses", id)); };
         
-        // ★★★ 切換月份時，強制同步日期輸入框 ★★★
         window.syncDateInput = () => {
             const todayStr = new Date().toISOString().slice(0,10);
             if (todayStr.startsWith(currentMonth)) {
-                document.getElementById('fDate').value = todayStr; // 現實本月，顯示今天
+                document.getElementById('fDate').value = todayStr;
             } else {
-                document.getElementById('fDate').value = currentMonth + "-01"; // 歷史/未來月份，顯示1號
+                document.getElementById('fDate').value = currentMonth + "-01";
             }
         };
 
@@ -195,7 +199,7 @@
             let [y, m] = currentMonth.split('-').map(Number); 
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
             currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
-            window.syncDateInput(); // 觸發同步
+            window.syncDateInput(); 
             render(); 
             updateMonthSelector(); 
         };
@@ -215,7 +219,7 @@
             onSnapshot(query(collection(db, "budgets")), (snap) => { allBudgets = {}; snap.forEach(d => allBudgets[d.id] = d.data()); if(!isEditing) render(); updateCategoryDropdown(); });
             onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => { allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() })); updateMonthSelector(); if(!isEditing) render(); });
             onSnapshot(query(collection(db, "settings")), (snap) => { saveTargetMap = {}; snap.forEach(d => { if(d.id.includes('_save')) saveTargetMap[d.data().month] = d.data().target; }); if(!isEditing) render(); });
-            window.syncDateInput(); // 初始加載時同步日期
+            window.syncDateInput(); 
         };
 
         const updateMonthSelector = () => {
@@ -257,10 +261,11 @@
                         sE += eS; sA += aS;
                         if(type === '收入') estI += eS; else { estE += eS; pieBData[cat] = (pieBData[cat] || 0) + eS; }
                         let cl = (type === '支出' && aS > eS) || (type === '收入' && aS < eS) ? 'budget-warning' : 'budget-safe';
-                        items += `<div class="item-row" data-cat="${cat}"><span class="handle">〓</span><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${type}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${m}','${type}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${cl}" value="${eS}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${m}','${type}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${aS}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${m}', '${type}', '${cat}', this.value, ${aS})" onkeydown="if(event.key==='Enter') this.blur()"></div></div>`;
+                        
+                        items += `<div class="item-row" data-cat="${cat}"><span class="handle">〓</span><div class="name-area"><input type="text" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${m}','${type}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${cl}" value="${eS}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${m}','${type}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${aS}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${m}', '${type}', '${cat}', this.value, ${aS})" onkeydown="if(event.key==='Enter') this.blur()"><span class="item-del-btn" onclick="deleteCategory('${m}','${type}','${cat}')">×</span></div></div>`;
                     });
                     body += `<div id="list-${m.replace(/\s+/g, '')}-${type}">${items}</div>`;
-                    body += `<div class="subtotal-row"><span style="padding-left:36px">合計:</span><div class="val-container"><div class="input-box" style="border:none;background:transparent">${sE.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8">${sA.toLocaleString()}</div></div></div>`;
+                    body += `<div class="subtotal-row"><span style="padding-left:36px">合計:</span><div class="val-container" style="padding-right:20px;"><div class="input-box" style="border:none;background:transparent">${sE.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8">${sA.toLocaleString()}</div></div></div>`;
                     body += `<div class="inline-add-area"><div class="inline-add-box"><input type="text" id="cAddCat-${m}-${type}" class="inline-add-name" placeholder="新${type}名稱..."><input type="number" id="cAddAmt-${m}-${type}" class="inline-add-amt" placeholder="預算"><button type="button" onclick="cardAddProject('${m}','${type}')" class="inline-add-btn">+</button></div></div>`;
                 });
                 html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
@@ -268,7 +273,7 @@
             document.getElementById('cardsContainer').innerHTML = html;
             document.getElementById('estBal').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
             document.getElementById('actBal').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
-            document.getElementById('historyTbody').innerHTML = allData.filter(d => d.date.startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#ccc;padding:0 5px">×</b></td></tr>`).join('');
+            document.getElementById('historyTbody').innerHTML = allData.filter(d => d.date.startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
             
             if (pieB && pieA) {
                 pieB.data.labels = Object.keys(pieBData); pieB.data.datasets[0].data = Object.values(pieBData); pieB.update();
