@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 極致排版版</title>
+    <title>請好好記帳 - 排序小計版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f6f8; margin: 0; padding: 8px; color: #333; overflow-x: hidden; width: 100vw; }
@@ -16,9 +17,8 @@
         .top-bar { background: #34495e; color: white; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; z-index: 100; }
         .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .month-nav { display: flex; align-items: center; gap: 4px; }
-        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         .month-select-style { padding: 5px; border-radius: 6px; border: none; font-size: 0.85rem; background: #fff; color: #333; font-weight: bold; }
-        
         .save-target-row { display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; gap: 8px; justify-content: center; }
         .save-input { width: 100px; background: #fff; border: none; border-radius: 4px; padding: 4px 8px; font-weight: bold; text-align: right; color: #2c3e50; }
 
@@ -29,8 +29,17 @@
         .form-group input, .form-group select { padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; height: 40px; appearance: none; background-color: #fff; }
         .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; height: 42px; width: 100%; margin-top: 5px; font-size: 0.95rem; }
 
-        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eee; width: 100%; gap: 4px; }
+        .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; }
+        
+        /* 拖拽與合計樣式 */
+        .item-list { display: flex; flex-direction: column; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eee; width: 100%; gap: 4px; background: #fff; }
+        .handle { color: #ccc; cursor: grab; padding: 0 4px; font-size: 1.1rem; }
+        .handle:active { cursor: grabbing; }
+        
+        .subtotal-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 0.75rem; color: #777; background: #fcfcfc; font-weight: bold; border-bottom: 1px solid #eee; margin-bottom: 5px; }
+        .subtotal-label { padding-left: 28px; } /* 對齊 handle 的寬度 */
+        
         .name-area { display: flex; align-items: center; flex: 1; min-width: 0; gap: 2px; } 
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.85rem; width: 100%; color: #555; outline: none; }
         .val-container { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
@@ -39,33 +48,13 @@
         .budget-warning { color: #e74c3c !important; border-color: #ffcdd2 !important; background: #fff5f5 !important; }
         .budget-safe { color: #27ae60 !important; border-color: #c8e6c9 !important; background: #fafffa !important; }
         .actual-input { background: #f8f9fa; color: #333; }
-
-        .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 1rem; flex-shrink: 0; font-weight: bold; padding: 0 4px; }
+        .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 0.9rem; flex-shrink: 0; font-weight: bold; padding: 0 4px; }
         .inline-add-box { margin-top: 6px; display: flex; gap: 4px; padding: 4px 0; }
-        .inline-add-box input { border: 1px solid #eee; border-radius: 6px; padding: 6px; font-size: 0.75rem; }
         .inline-add-btn { background: #eee; border: none; border-radius: 6px; padding: 0 10px; cursor: pointer; color: #666; font-weight: bold; }
 
-        /* 核心佈局修正：底部改為垂直堆疊，防止壓縮 */
-        .bottom-grid { display: flex; flex-direction: column; gap: 10px; }
-        .chart-box { display: flex; flex-direction: row; gap: 5px; justify-content: space-around; padding: 12px; }
-        .chart-container { flex: 1; max-width: 160px; text-align: center; }
-        
-        .bal-card { padding: 15px; border-left: 8px solid #1a73e8; background: #fff; }
-        .bal-row { display: flex; justify-content: space-between; margin-bottom: 6px; align-items: center; }
-        .acc-bal { color: #8e44ad; font-size: 1.3rem; border-top: 1px solid #eee; padding-top: 8px; margin-top: 8px; font-weight: bold; }
-
-        /* 流水帳表格修正 */
-        .history-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
-        .history-table td { padding: 8px 4px; border-bottom: 1px solid #f8f9fa; }
-        .history-date-input { border: none; background: transparent; font-family: inherit; font-size: 0.8rem; color: #666; width: 55px; cursor: pointer; padding: 0; }
-        .history-name { min-width: 50px; font-weight: bold; color: #444; }
-        .history-cat { color: #666; }
-        .history-amt { text-align: right; font-weight: bold; width: 80px; }
-
-        @media (max-width: 600px) {
-            .chart-box { padding: 8px; }
-            .history-table { font-size: 0.8rem; }
-        }
+        .acc-bal { color: #8e44ad; font-size: 1.1rem; border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px; font-weight: bold; }
+        .history-table { width:100%; border-collapse:collapse; font-size:0.75rem; }
+        @media (max-width: 600px) { .input-box { width: 58px; } }
     </style>
 </head>
 <body>
@@ -99,19 +88,15 @@
 
         <div class="middle-section" id="cardsContainer"></div>
 
-        <div class="bottom-grid">
-            <div class="card chart-box">
-                <div class="chart-container"><canvas id="pieBudget"></canvas><div style="font-size:0.65rem; color:#888;">預估支出</div></div>
-                <div class="chart-container"><canvas id="pieActual"></canvas><div style="font-size:0.65rem; color:#888;">實際支出</div></div>
+        <div class="card" style="margin-top:10px;">
+            <div style="display:flex; justify-content: space-around; align-items: center; text-align: center;">
+                <div><div style="font-size:0.7rem; color:#888;">預估節餘</div><div id="estBal" style="font-weight:bold; font-size:1.1rem;">0</div></div>
+                <div><div style="font-size:0.7rem; color:#888;">實際結餘 (扣存後)</div><div id="actBal" style="font-weight:bold; font-size:1.1rem;">0</div></div>
             </div>
-            <div class="card bal-card">
-                <div class="bal-row"><span style="font-size:0.8rem; color:#666;">預估本月節餘</span><span id="estBal" style="font-weight:bold; font-size:1rem;">0</span></div>
-                <div class="bal-row"><span style="font-size:0.8rem; color:#666;">實際本月結餘 (扣存後)</span><span id="actBal" style="font-weight:bold; font-size:1.1rem;">0</span></div>
-                <div id="accBal" class="acc-bal">NT$ 0</div>
-            </div>
+            <div id="accBal" class="acc-bal" style="text-align: center;">NT$ 0</div>
         </div>
 
-        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">流水帳紀錄 (點擊日期可修改)</div><div style="overflow-x:auto"><table class="history-table"><tbody id="historyTbody"></tbody></table></div></div>
+        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">流水帳紀錄</div><div style="overflow-x:auto"><table class="history-table"><tbody id="historyTbody"></tbody></table></div></div>
     </div>
 
     <script type="module">
@@ -130,18 +115,9 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        let pieB, pieA, allData = [], allBudgets = {}, currentMonth = new Date().toISOString().slice(0,7);
+        let allData = [], allBudgets = {}, currentMonth = new Date().toISOString().slice(0,7);
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
         const defMap = { '王得賢': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '蔡書瑜': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王婕恩': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王予陽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '共同支出': { 收入: ['獎金','利息'], 支出: ['房租','水電瓦斯','第四台','車位租金','其他'] } };
-
-        const initCharts = () => {
-            const opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true };
-            pieB = new Chart(document.getElementById('pieBudget').getContext('2d'), { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#ff9f40'] }] }, options: opt });
-            pieA = new Chart(document.getElementById('pieActual').getContext('2d'), { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#ff9f40'] }] }, options: opt });
-        };
-        initCharts();
-
-        window.saveDate = async (id, newDate) => { if (id && newDate) await updateDoc(doc(db, "expenses", id), { date: newDate }); };
 
         window.updateCategoryDropdown = () => {
             const m = document.getElementById('fMember').value;
@@ -155,7 +131,7 @@
 
         window.deleteCategory = async (member, type, category, ask = true) => {
             if (ask && !confirm(`確定徹底刪除「${category}」？`)) return;
-            await setDoc(doc(db, "budgets", `${currentMonth}_${member}_${category}`), { month: currentMonth, member, type, category, amount: 0, isDeleted: true }, { merge: true });
+            await setDoc(doc(db, "budgets", `${currentMonth}_${member}_${category}`), { isDeleted: true }, { merge: true });
         };
 
         window.saveBudget = async (member, type, category, field, value) => {
@@ -168,21 +144,23 @@
             }
         };
 
+        // 【新增：更新排序邏輯】
+        window.saveOrder = async (member, type, sortedArray) => {
+            const promises = sortedArray.map((cat, index) => {
+                return setDoc(doc(db, "budgets", `${currentMonth}_${member}_${cat}`), { order: index }, { merge: true });
+            });
+            await Promise.all(promises);
+        };
+
         window.saveActualDirect = async (member, type, category, newVal, currentSum) => {
             const val = Math.round(Number(newVal)) || 0;
             if (val === currentSum) return;
-            if (val === 0) {
-                const q = query(collection(db, "expenses"), where("member", "==", member), where("category", "==", category));
-                const snap = await getDocs(q);
-                const promises = snap.docs.filter(d => d.data().date.startsWith(currentMonth)).map(d => deleteDoc(doc(db, "expenses", d.id)));
-                await Promise.all(promises);
-            } else {
-                const diff = val - currentSum;
-                await addDoc(collection(db, "expenses"), { date: new Date().toISOString().slice(0, 10), type, member, category, amount: diff, timestamp: new Date() });
-            }
+            const diff = val - currentSum;
+            await addDoc(collection(db, "expenses"), { date: new Date().toISOString().slice(0, 10), type, member, category, amount: diff, timestamp: new Date() });
         };
 
         window.updateSaveTarget = async (val) => { await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(val) || 0 }); };
+        window.saveDate = async (id, newDate) => { if (id && newDate) await updateDoc(doc(db, "expenses", id), { date: newDate }); };
         window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
 
         window.cardAddProject = async (m, t) => {
@@ -222,7 +200,7 @@
         };
 
         const render = () => {
-            let estI = 0, estE = 0, actI = 0, actE = 0, pieBudData = {}, pieActData = {}, totalAccBuffer = 0;
+            let estI = 0, estE = 0, actI = 0, actE = 0, totalAccBuffer = 0;
             const results = {}; members.forEach(m => results[m] = { 收入: {}, 支出: {} });
             const currentMonthData = allData.filter(d => d.date.startsWith(currentMonth));
             
@@ -230,9 +208,10 @@
                 const target = results[d.member]; if(!target) return;
                 const amt = Math.round(Number(d.amount)) || 0;
                 if (d.type === '收入') { actI += amt; target.收入[d.category] = (target.收入[d.category] || 0) + amt; }
-                else { actE += amt; target.支出[d.category] = (target.支出[d.category] || 0) + amt; pieActData[d.category] = (pieActData[d.category] || 0) + amt; }
+                else { actE += amt; target.支出[d.category] = (target.支出[d.category] || 0) + amt; }
             });
 
+            // 緩衝金
             const allMonths = [...new Set([...allData.map(d => d.date.slice(0,7)), ...Object.values(allBudgets).map(b => b.month)])].sort();
             allMonths.forEach(m => {
                 let mEstI = 0, mEstE = 0, mActI = 0, mActE = 0;
@@ -243,28 +222,50 @@
 
             let html = '';
             members.forEach(m => {
-                let items = '';
-                const sections = [{t:'收入', k:'收入', c:'income-text'}, {t:'支出', k:'支出', c:'expense-text'}];
+                let cardBody = '';
+                const sections = [{t:'收入', k:'收入'}, {t:'支出', k:'支出'}];
+                
                 sections.forEach(s => {
-                    items += `<div style="font-size:0.7rem; color:#999; margin-top:4px;">▼ ${s.t}</div>`;
+                    let secEstSubtotal = 0;
+                    let secActSubtotal = 0;
+                    cardBody += `<div style="font-size:0.7rem; color:#999; margin-top:8px;">▼ ${s.t} (按住〓可排序)</div>`;
+                    
                     const allPastCats = Object.values(allBudgets).filter(b => b.member === m && b.type === s.k && !b.isDeleted).map(b => b.category);
                     const cats = [...new Set([...(defMap[m] ? defMap[m][s.k] : []), ...allPastCats])];
+                    
+                    // 排序邏輯
+                    cats.sort((a,b) => {
+                        const orderA = Object.values(allBudgets).find(o => o.month === currentMonth && o.member === m && o.category === a)?.order ?? 999;
+                        const orderB = Object.values(allBudgets).find(o => o.month === currentMonth && o.member === m && o.category === b)?.order ?? 999;
+                        return orderA - orderB;
+                    });
+
+                    let itemsHtml = '';
                     cats.forEach(cat => {
                         const actSum = results[m][s.k][cat] || 0;
                         const budgetDoc = Object.values(allBudgets).find(b => b.month === currentMonth && b.member === m && b.category === cat);
                         if (budgetDoc?.isDeleted) return;
+
                         let estSum = budgetDoc?.amount;
                         if (estSum === undefined) {
                             const hist = Object.values(allBudgets).filter(b => b.member === m && b.category === cat && !b.isDeleted).sort((a,b) => b.month.localeCompare(a.month));
                             estSum = hist.length > 0 ? Number(hist[0].amount) || 0 : 0;
                         }
-                        if(s.k === '收入') estI += estSum; else { estE += estSum; pieBudData[cat] = (pieBudData[cat] || 0) + estSum; }
+                        
+                        secEstSubtotal += estSum;
+                        secActSubtotal += actSum;
+                        if(s.k === '收入') estI += estSum; else estE += estSum;
+
                         let colorClass = (s.k === '支出' && actSum > estSum) || (s.k === '收入' && actSum < estSum) ? 'budget-warning' : 'budget-safe';
-                        items += `<div class="item-row"><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${s.k}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onblur="saveBudget('${m}','${s.k}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${colorClass}" value="${estSum}" onfocus="this.select()" onblur="saveBudget('${m}','${s.k}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${actSum}" onfocus="this.select()" onblur="saveActualDirect('${m}', '${s.k}', '${cat}', this.value, ${actSum})" onkeydown="if(event.key==='Enter') this.blur()"></div></div>`;
+                        itemsHtml += `<div class="item-row" data-cat="${cat}"><span class="handle">〓</span><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${s.k}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onblur="saveBudget('${m}','${s.k}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${colorClass}" value="${estSum}" onfocus="this.select()" onblur="saveBudget('${m}','${s.k}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${actSum}" onfocus="this.select()" onblur="saveActualDirect('${m}', '${s.k}', '${cat}', this.value, ${actSum})" onkeydown="if(event.key==='Enter') this.blur()"></div></div>`;
                     });
-                    items += `<div class="inline-add-box"><input type="text" id="cAddCat-${m}-${s.k}" style="flex:2; border:1px solid #eee; border-radius:6px; padding:4px;" placeholder="名稱"><input type="number" id="cAddAmt-${m}-${s.k}" style="flex:1; border:1px solid #eee; border-radius:6px; padding:4px;" placeholder="預估" onfocus="this.select()"><button onclick="cardAddProject('${m}','${s.k}')" class="inline-add-btn">+</button></div>`;
+
+                    cardBody += `<div class="item-list" id="list-${m.replace(/\s+/g, '')}-${s.k}">${itemsHtml}</div>`;
+                    // 【新增：小計列】
+                    cardBody += `<div class="subtotal-row"><span class="subtotal-label">${s.t}小計:</span><div class="val-container" style="padding-right:2px;"><div class="input-box" style="border:none;background:transparent;">${secEstSubtotal.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8;">${secActSubtotal.toLocaleString()}</div></div></div>`;
+                    cardBody += `<div class="inline-add-box"><input type="text" id="cAddCat-${m}-${s.k}" style="flex:2; border:1px solid #eee; border-radius:6px; padding:4px;" placeholder="新項目"><input type="number" id="cAddAmt-${m}-${s.k}" style="flex:1; border:1px solid #eee; border-radius:6px; padding:4px;" placeholder="預估" onfocus="this.select()"><button onclick="cardAddProject('${m}','${s.k}')" class="inline-add-btn">+</button></div>`;
                 });
-                html += `<div class="card"><div class="card-title">${m === '共同支出' ? '🏠 共同' : m}</div>${items}</div>`;
+                html += `<div class="card"><div class="card-title">${m === '共同支出' ? '🏠 共同' : m}</div>${cardBody}</div>`;
             });
             document.getElementById('cardsContainer').innerHTML = html;
             document.getElementById('estBal').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
@@ -272,21 +273,26 @@
             const actBalTotal = Math.round(actI - actE - curSave);
             document.getElementById('actBal').innerText = `NT$ ${actBalTotal.toLocaleString()}`;
             document.getElementById('actBal').style.color = actBalTotal < 0 ? '#e74c3c' : '#27ae60';
-            document.getElementById('accBal').innerText = `累積緩衝: NT$ ${Math.round(totalAccBuffer).toLocaleString()}`;
+            document.getElementById('accBal').innerText = `累計緩衝金: NT$ ${Math.round(totalAccBuffer).toLocaleString()}`;
             
-            // 【流水帳修復】：日期改為輸入框、姓名加寬、金額對齊
-            document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `
-                <tr>
-                    <td><input type="date" class="history-date-input" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td>
-                    <td class="history-name">${d.member.substring(0,2)}</td>
-                    <td class="history-cat">${d.category}</td>
-                    <td class="history-amt">${Math.round(Number(d.amount)||0).toLocaleString()}</td>
-                    <td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#ccc;padding:0 5px;">×</b></td>
-                </tr>`).join('');
-            
-            pieB.data.labels = Object.keys(pieBudData); pieB.data.datasets[0].data = Object.values(pieBudData); pieB.update();
-            pieA.data.labels = Object.keys(pieActData); pieA.data.datasets[0].data = Object.values(pieActData); pieA.update();
-            updateCategoryDropdown();
+            document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `<tr><td style="padding:8px 4px"><input type="date" class="history-date-input" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right;font-weight:bold">${Math.round(Number(d.amount)||0).toLocaleString()}</td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#ccc;padding:0 5px">×</b></td></tr>`).join('');
+
+            // 初始化所有卡片的拖拽功能
+            members.forEach(m => {
+                ['收入', '支出'].forEach(type => {
+                    const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${type}`);
+                    if (el) {
+                        Sortable.create(el, {
+                            handle: '.handle',
+                            animation: 150,
+                            onEnd: function() {
+                                const sorted = Array.from(el.children).map(row => row.getAttribute('data-cat'));
+                                saveOrder(m, type, sorted);
+                            }
+                        });
+                    }
+                });
+            });
         };
 
         document.getElementById('mainForm').addEventListener('submit', async (e) => {
