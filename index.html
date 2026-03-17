@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 刪除功能最終修復版</title>
+    <title>請好好記帳 - 全權限開放版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f6f8; margin: 0; padding: 8px; color: #333; overflow-x: hidden; width: 100vw; }
         .dashboard-container { width: 100%; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
-        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 10px; display: flex; flex-direction: column; }
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 12px; display: flex; flex-direction: column; }
         .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 8px; border-bottom: 2px solid #f0f2f5; padding-bottom: 6px; color: #1a73e8; }
         .top-bar { background: #34495e; color: white; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; z-index: 100; }
         .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .save-target-row { display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; gap: 8px; justify-content: center; }
         .save-input { width: 100px; background: #fff; border: none; border-radius: 4px; padding: 4px 8px; font-weight: bold; text-align: right; color: #2c3e50; }
         .month-nav { display: flex; align-items: center; gap: 4px; }
-        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
         .top-bar select { padding: 5px; border-radius: 6px; border: none; font-size: 0.85rem; background: #fff; }
         .form-section { border-top: 5px solid #1a73e8; }
         .form-grid { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -37,20 +37,12 @@
         .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 1rem; flex-shrink: 0; font-weight: bold; padding: 0 4px; }
         .inline-add-box { margin-top: 6px; display: flex; gap: 4px; padding: 4px 0; }
         .inline-add-box input { border: 1px solid #eee; border-radius: 6px; padding: 6px; font-size: 0.75rem; }
-        .inline-add-name { flex: 2; }
-        .inline-add-amt { flex: 1; }
         .inline-add-btn { background: #eee; border: none; border-radius: 6px; padding: 0 10px; cursor: pointer; color: #666; font-weight: bold; }
         .bottom-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; }
         .chart-box { display: flex; flex-direction: row; gap: 5px; justify-content: space-around; padding: 8px; }
-        .chart-container { flex: 1; max-width: 150px; text-align: center; }
         .bal-card { padding: 10px; border-left: 6px solid #1a73e8; }
-        .acc-bal { color: #8e44ad; font-size: clamp(1rem, 4vw, 1.4rem); border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px; }
-        .history-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-        @media (max-width: 600px) {
-            .middle-section { grid-template-columns: 1fr; }
-            .bottom-grid { grid-template-columns: 1fr; }
-            .input-box { width: 58px; }
-        }
+        .acc-bal { color: #8e44ad; font-size: clamp(0.9rem, 4vw, 1.2rem); border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px; }
+        @media (max-width: 600px) { .input-box { width: 58px; } }
     </style>
 </head>
 <body>
@@ -65,8 +57,8 @@
                 </div>
             </div>
             <div class="save-target-row">
-                <span style="font-size: 0.8rem;">💰 預計本月存款金額：</span>
-                <input type="number" id="saveTargetInput" class="save-input" placeholder="0" onfocus="this.select()" onblur="updateSaveTarget(this.value)">
+                <span>💰 預計本月存款金額：</span>
+                <input type="number" id="saveTargetInput" class="save-input" onfocus="this.select()" onblur="updateSaveTarget(this.value)">
             </div>
         </div>
 
@@ -78,7 +70,7 @@
                 <div class="form-group"><label>成員</label><select id="fMember" onchange="updateCategoryDropdown()"></select></div>
                 <div class="form-group"><label>分類</label><select id="fCat" required></select></div>
                 <div class="form-group"><label>金額</label><input type="number" id="fAmt" onfocus="this.select()" required></div>
-                <button type="submit" class="submit-btn">儲存紀錄</button>
+                <button type="submit" class="submit-btn">儲存流水帳</button>
             </form>
         </div>
 
@@ -86,8 +78,8 @@
 
         <div class="bottom-grid">
             <div class="card chart-box">
-                <div class="chart-container"><canvas id="pieBudget"></canvas><div style="font-size:0.6rem">預估</div></div>
-                <div class="chart-container"><canvas id="pieActual"></canvas><div style="font-size:0.6rem">實際</div></div>
+                <div style="flex:1; max-width:150px; text-align:center;"><canvas id="pieBudget"></canvas><div style="font-size:0.6rem">預估</div></div>
+                <div style="flex:1; max-width:150px; text-align:center;"><canvas id="pieActual"></canvas><div style="font-size:0.6rem">實際</div></div>
             </div>
             <div class="card bal-card">
                 <div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="font-size:0.7rem">預估節餘</span><span id="estBal" style="font-weight:bold">0</span></div>
@@ -127,76 +119,54 @@
 
         window.saveDate = async (id, newDate) => { if (id && newDate) await updateDoc(doc(db, "expenses", id), { date: newDate }); };
 
-        // 【最終修正：精確刪除邏輯】
+        // 【權限完全開放：刪除邏輯】
         window.deleteCategory = async (member, type, category, ask = true) => {
-            if (ask && !confirm(`確定要完全刪除「${category}」嗎？`)) return;
+            if (ask && !confirm(`確定徹底刪除「${category}」？`)) return;
             
-            // 1. 搜尋預算文件並刪除
-            const bQuery = query(collection(db, "budgets"), 
-                where("month", "==", currentMonth), 
-                where("member", "==", member), 
-                where("category", "==", category));
-            const bSnap = await getDocs(bQuery);
-            bSnap.forEach(d => deleteDoc(doc(db, "budgets", d.id)));
+            const budgetId = `${currentMonth}_${member}_${category}`;
+            // 標記刪除，防止繼承
+            await setDoc(doc(db, "budgets", budgetId), { month: currentMonth, member, type, category, amount: 0, isDeleted: true }, { merge: true });
             
-            // 2. 搜尋當月流水帳並刪除
-            const eQuery = query(collection(db, "expenses"), 
-                where("member", "==", member), 
-                where("category", "==", category));
-            const eSnap = await getDocs(eQuery);
-            const promises = eSnap.docs
-                .filter(d => d.data().date.startsWith(currentMonth))
-                .map(d => deleteDoc(doc(db, "expenses", d.id)));
+            // 刪除當月所有相關流水帳
+            const q = query(collection(db, "expenses"), where("member", "==", member), where("category", "==", category));
+            const snap = await getDocs(q);
+            const promises = snap.docs.filter(d => d.data().date.startsWith(currentMonth)).map(d => deleteDoc(doc(db, "expenses", d.id)));
             await Promise.all(promises);
-            
-            console.log("刪除完畢");
         };
 
-        window.saveBudget = async (member, type, originalCategory, field, value) => {
-            if (field === 'name') {
-                if (value === originalCategory || !value) return;
-                // 找到舊的並更新名稱
-                const q = query(collection(db, "budgets"), where("month", "==", currentMonth), where("member", "==", member), where("category", "==", originalCategory));
-                const snap = await getDocs(q);
-                if (snap.empty) {
-                    await addDoc(collection(db, "budgets"), { month: currentMonth, member, type, category: value, amount: 0 });
-                } else {
-                    await updateDoc(doc(db, "budgets", snap.docs[0].id), { category: value });
-                }
+        window.saveBudget = async (member, type, category, field, value) => {
+            const budgetId = `${currentMonth}_${member}_${category}`;
+            if (field === 'amount' && Math.round(Number(value)) === 0) {
+                await deleteCategory(member, type, category, false);
             } else {
-                const numVal = Math.round(Number(value)) || 0;
-                if (numVal === 0) {
-                    await deleteCategory(member, type, originalCategory, false);
-                } else {
-                    const q = query(collection(db, "budgets"), where("month", "==", currentMonth), where("member", "==", member), where("category", "==", originalCategory));
-                    const snap = await getDocs(q);
-                    if (snap.empty) {
-                        await addDoc(collection(db, "budgets"), { month: currentMonth, member, type, category: originalCategory, amount: numVal });
-                    } else {
-                        await updateDoc(doc(db, "budgets", snap.docs[0].id), { amount: numVal });
-                    }
-                }
+                const updateData = field === 'amount' ? { amount: Math.round(Number(value)) || 0, isDeleted: false } : { category: value, isDeleted: false };
+                await setDoc(doc(db, "budgets", budgetId), { month: currentMonth, member, type, category, ...updateData }, { merge: true });
             }
         };
 
         window.saveActual = async (id, member, type, category, newVal) => {
             const val = Math.round(Number(newVal)) || 0;
             if (id) {
-                if (val === 0) await deleteDoc(doc(db, "expenses", id));
-                else await updateDoc(doc(db, "expenses", id), { amount: val });
+                if (val === 0) {
+                    await deleteDoc(doc(db, "expenses", id));
+                    // 實際歸零也同步刪除標籤 (全開放權限)
+                    await deleteCategory(member, type, category, false);
+                } else await updateDoc(doc(db, "expenses", id), { amount: val });
             } else if (val > 0) {
                 await addDoc(collection(db, "expenses"), { date: `${currentMonth}-01`, member, type, category, amount: val, timestamp: new Date() });
             }
         };
 
         window.updateSaveTarget = async (val) => { await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(val) || 0 }); };
+        window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
 
         window.cardAddProject = async (m, t) => {
-            const nameEl = document.getElementById(`cAddCat-${m}-${t}`);
-            const amtEl = document.getElementById(`cAddAmt-${m}-${t}`);
-            if (!nameEl.value || !amtEl.value) return;
-            await addDoc(collection(db, "budgets"), { month: currentMonth, member: m, type: t, category: nameEl.value, amount: Number(amtEl.value) });
-            nameEl.value = ''; amtEl.value = '';
+            const name = document.getElementById(`cAddCat-${m}-${t}`).value;
+            const amt = document.getElementById(`cAddAmt-${m}-${t}`).value;
+            if (!name) return;
+            await saveBudget(m, t, name, 'amount', amt || 0);
+            document.getElementById(`cAddCat-${m}-${t}`).value = '';
+            document.getElementById(`cAddAmt-${m}-${t}`).value = '';
         };
 
         window.changeMonth = (offset) => {
@@ -216,26 +186,13 @@
             });
         };
 
-        const updateMonthSelector = () => {
-            const months = [...new Set(allData.map(d => d.date.slice(0,7)))];
-            if(!months.includes(currentMonth)) months.push(currentMonth);
-            months.sort().reverse();
-            document.getElementById('monthSelect').innerHTML = months.map(m => `<option value="${m}" ${m===currentMonth?'selected':''}>${m}</option>`).join('');
-            document.getElementById('fMember').innerHTML = members.map(m => `<option value="${m}">${m === '共同支出' ? '🏠 共同' : m}</option>`).join('');
-            updateCategoryDropdown();
-        };
-
         window.updateCategoryDropdown = () => {
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
-            const dynamicCats = Object.values(allBudgets).filter(b => b.member === m && b.type === t).map(b => b.category);
-            const defMap = {
-                '王得賢': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '蔡書瑜': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '王婕恩': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '王予陽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '共同支出': { 收入: ['獎金','利息'], 支出: ['房租','水電瓦斯','第四台','車位租金','其他'] }
-            };
+            // 全開放後，僅從 budgets 集合抓取未被刪除的分類
+            const dynamicCats = Object.values(allBudgets).filter(b => b.member === m && b.type === t && !b.isDeleted).map(b => b.category);
+            // 預設表僅作為初次引導，不再硬性鎖定
+            const defMap = { '王得賢': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '蔡書瑜': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王婕恩': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王予陽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '共同支出': { 收入: ['獎金','利息'], 支出: ['房租','水電瓦斯','第四台','車位租金','其他'] } };
             const finalCats = [...new Set([...(defMap[m] ? defMap[m][t] : []), ...dynamicCats])];
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
@@ -251,22 +208,16 @@
                 else { actE += amt; (target.支出[d.category] = target.支出[d.category] || []).push({id: d.id, v: amt}); pieActData[d.category] = (pieActData[d.category] || 0) + amt; }
             });
 
-            // 緩衝金
+            // 緩衝金計算
             const allMonthsInDb = [...new Set([...allData.map(d => d.date.slice(0,7)), ...Object.values(allBudgets).map(b => b.month)])].sort();
             allMonthsInDb.forEach(m => {
                 let mEstI = 0, mEstE = 0, mActI = 0, mActE = 0;
                 allData.filter(d => d.date.startsWith(m)).forEach(d => { if(d.type==='收入') mActI += Math.round(Number(d.amount))||0; else mActE += Math.round(Number(d.amount))||0; });
-                Object.values(allBudgets).filter(b => b.month === m).forEach(b => { if(b.type==='收入') mEstI += Math.round(Number(b.amount))||0; else mEstE += Math.round(Number(b.amount))||0; });
+                Object.values(allBudgets).filter(b => b.month === m && !b.isDeleted).forEach(b => { if(b.type==='收入') mEstI += Math.round(Number(b.amount))||0; else mEstE += Math.round(Number(b.amount))||0; });
                 totalAccBuffer += (mEstI - mActI) - (mEstE - mActE);
             });
 
-            const defMap = {
-                '王得賢': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '蔡書瑜': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '王婕恩': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '王予陽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
-                '共同支出': { 收入: ['獎金','利息'], 支出: ['房租','水電瓦斯','第四台','車位租金','其他'] }
-            };
+            const defMap = { '王得賢': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '蔡書瑜': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王婕恩': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '王予陽': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] }, '共同支出': { 收入: ['獎金','利息'], 支出: ['房租','水電瓦斯','第四台','車位租金','其他'] } };
 
             let html = '';
             members.forEach(m => {
@@ -279,25 +230,22 @@
                     cats.forEach(cat => {
                         const logs = results[m][s.k][cat] || [];
                         const actSum = logs.reduce((a,b)=>a+Math.round(Number(b.v)||0), 0);
-                        const bId = `${currentMonth}_${m}_${cat}`;
-                        let estSum = Object.values(allBudgets).find(b => b.month === currentMonth && b.member === m && b.category === cat)?.amount;
+                        const budgetDoc = Object.values(allBudgets).find(b => b.month === currentMonth && b.member === m && b.category === cat);
+                        
+                        if (budgetDoc?.isDeleted) return;
+
+                        let estSum = budgetDoc?.amount;
                         if (estSum === undefined) {
-                            const hist = Object.values(allBudgets).filter(b => b.member === m && b.category === cat).sort((a,b) => b.month.localeCompare(a.month));
-                            estSum = hist.length > 0 ? Math.round(Number(hist[0].amount)) || 0 : 0;
+                            const hist = Object.values(allBudgets).filter(b => b.member === m && b.category === cat && !b.isDeleted).sort((a,b) => b.month.localeCompare(a.month));
+                            estSum = hist.length > 0 ? Number(hist[0].amount) || 0 : 0;
                         }
                         if(s.k === '收入') estI += estSum; else { estE += estSum; pieBudData[cat] = (pieBudData[cat] || 0) + estSum; }
                         let colorClass = (s.k === '支出' && actSum > estSum) || (s.k === '收入' && actSum < estSum) ? 'budget-warning' : 'budget-safe';
-                        items += `
-                            <div class="item-row">
-                                <div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${s.k}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onblur="saveBudget('${m}','${s.k}','${cat}','name',this.value)"></div>
-                                <div class="val-container">
-                                    <input type="number" class="input-box ${colorClass}" value="${estSum}" onfocus="this.select()" onblur="saveBudget('${m}','${s.k}','${cat}','amount',this.value)">
-                                    <input type="number" class="input-box actual-input" value="${actSum}" onfocus="this.select()" onblur="saveActual('${logs[0]?.id || ''}', '${m}', '${s.k}', '${cat}', this.value)" onkeydown="if(event.key==='Enter') this.blur()">
-                                    ${logs.length > 0 ? `<b class="del-btn" onclick="delItem('${logs[0].id}')">×</b>` : ''}
-                                </div>
-                            </div>`;
+                        
+                        // 【權限開放】所有項目都有刪除鈕 ×
+                        items += `<div class="item-row"><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${s.k}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onfocus="this.select()" onblur="saveBudget('${m}','${s.k}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${colorClass}" value="${estSum}" onfocus="this.select()" onblur="saveBudget('${m}','${s.k}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${actSum}" onfocus="this.select()" onblur="saveActual('${logs[0]?.id || ''}', '${m}', '${s.k}', '${cat}', this.value)" onkeydown="if(event.key==='Enter') this.blur()">${logs.length > 0 ? `<b onclick="delItem('${logs[0].id}')" style="cursor:pointer;color:#ccc;margin-left:2px">×</b>` : ''}</div></div>`;
                     });
-                    items += `<div class="inline-add-box"><input type="text" id="cAddCat-${m}-${s.k}" class="inline-add-name" placeholder="名稱"><input type="number" id="cAddAmt-${m}-${s.k}" class="inline-add-amt" placeholder="預估" onfocus="this.select()"><button class="inline-add-btn" onclick="cardAddProject('${m}','${s.k}')">+</button></div>`;
+                    items += `<div class="inline-add-box"><input type="text" id="cAddCat-${m}-${s.k}" style="flex:2" placeholder="新項目"><input type="number" id="cAddAmt-${m}-${s.k}" style="flex:1" placeholder="預估" onfocus="this.select()"><button onclick="cardAddProject('${m}','${s.k}')" class="inline-add-btn">+</button></div>`;
                 });
                 html += `<div class="card"><div class="card-title">${m === '共同支出' ? '🏠 共同' : m}</div>${items}</div>`;
             });
@@ -308,13 +256,12 @@
             document.getElementById('actBal').innerText = `NT$ ${actBalTotal.toLocaleString()}`;
             document.getElementById('actBal').style.color = actBalTotal < 0 ? '#e74c3c' : '#27ae60';
             document.getElementById('accBal').innerText = `累積緩衝: NT$ ${Math.round(totalAccBuffer).toLocaleString()}`;
-            document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `<tr><td style="padding:10px 0"><input type="date" style="border:none;background:transparent;width:110px;" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td>${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b class="del-btn" onclick="delItem('${d.id}')">×</b></td></tr>`).join('');
+            document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `<tr><td style="padding:10px 0"><input type="date" style="border:none;background:transparent;width:110px;" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td>${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#ccc">×</b></td></tr>`).join('');
             pieB.data.labels = Object.keys(pieBudData); pieB.data.datasets[0].data = Object.values(pieBudData); pieB.update();
             pieA.data.labels = Object.keys(pieActData); pieA.data.datasets[0].data = Object.values(pieActData); pieA.update();
             updateCategoryDropdown();
         };
 
-        window.delItem = async (id) => { if(confirm("確定刪除這筆紀錄？")) await deleteDoc(doc(db, "expenses", id)); };
         document.getElementById('mainForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             await addDoc(collection(db, "expenses"), { date: document.getElementById('fDate').value, type: document.getElementById('fType').value, member: document.getElementById('fMember').value, category: document.getElementById('fCat').value, amount: Math.round(Number(document.getElementById('fAmt').value)), timestamp: new Date() });
