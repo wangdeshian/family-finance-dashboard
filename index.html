@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 邏輯絕對正確版</title>
+    <title>請好好記帳 - 功能全修復版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -25,8 +25,8 @@
         .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         .form-group { display: flex; flex-direction: column; gap: 4px; }
         .form-group label { font-size: 0.75rem; font-weight: bold; color: #888; }
-        .form-group input, .form-group select { padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; }
-        .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; height: 55px; margin-top: 15px; font-size: 1.2rem; }
+        .form-group input, .form-group select { padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; outline: none; }
+        .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; height: 55px; margin-top: 15px; font-size: 1.2rem; box-shadow: 0 4px 6px rgba(26,115,232,0.2); }
 
         .middle-section { display: flex; flex-direction: column; gap: 15px; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 6px; }
@@ -34,20 +34,21 @@
         .name-area { display: flex; align-items: center; flex: 1; min-width: 0; gap: 2px; } 
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.95rem; width: 100%; color: #444; outline: none; }
         
-        /* 數值左右並排 */
+        /* 數值左右並排修正 */
         .val-container { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
         .input-box { width: 72px; border: 1px solid #e0e0e0; text-align: right; font-weight: bold; border-radius: 8px; padding: 8px 4px; font-size: 0.85rem; }
+        
         .budget-warning { color: #e74c3c !important; background: #fff5f5 !important; }
         .budget-safe { color: #27ae60 !important; background: #fafffa !important; }
         .actual-input { background: #f8f9fa; color: #333; }
-        .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 1.1rem; padding: 0 4px; flex-shrink: 0; }
+        .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 1.2rem; padding: 0 6px; flex-shrink: 0; }
 
         .subtotal-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 0.8rem; color: #666; background: #fcfcfc; font-weight: bold; border-top: 1px solid #eee; }
         
-        /* 新增按鈕區優化 */
+        /* 新增項目區域 */
         .inline-add-box { margin-top: 10px; display: flex; gap: 6px; width: 100%; align-items: center; }
-        .inline-add-name { flex: 2; border: 1px solid #eee !important; padding: 10px !important; border-radius: 10px !important; font-size: 0.9rem !important; }
-        .inline-add-amt { flex: 1; border: 1px solid #eee !important; padding: 10px !important; border-radius: 10px !important; text-align: right; font-size: 0.9rem !important; }
+        .inline-add-name { flex: 2; border: 1px solid #eee !important; padding: 10px !important; border-radius: 10px !important; outline: none; }
+        .inline-add-amt { flex: 1; border: 1px solid #eee !important; padding: 10px !important; border-radius: 10px !important; text-align: right; outline: none; }
         .inline-add-btn { background: #1a73e8; border: none; border-radius: 10px; width: 45px; height: 45px; color: white; cursor: pointer; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -60,7 +61,7 @@
     <div class="dashboard-container">
         <div class="top-bar">
             <div class="top-row">
-                <strong>🚀 絕對穩定版本</strong>
+                <strong>🚀 最終確定穩定版</strong>
                 <div class="month-nav">
                     <button class="nav-btn" onclick="changeMonth(-1)">◀</button>
                     <select id="monthSelect" class="month-select-style" onchange="currentMonth = this.value; render();"></select>
@@ -132,15 +133,19 @@
 
         window.deleteCategory = async (m, t, c) => {
             if (!confirm(`確定移除「${c}」？`)) return;
-            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { isDeleted: true }, { merge: true });
+            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { month: currentMonth, member: m, type: t, category: c, amount: 0, isDeleted: true }, { merge: true });
         };
 
         window.saveBudget = async (m, t, c, f, v) => {
             isEditing = false;
             const bId = `${currentMonth}_${m}_${c}`;
             const num = Math.round(Number(v)) || 0;
-            if (f === 'amount' && num === 0) { await deleteCategory(m, t, c); }
-            else { await setDoc(doc(db, "budgets", bId), { month: currentMonth, member: m, type: t, category: c, [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, isDeleted: false }, { merge: true }); }
+            // 如果名字被刪除了但後來又新增，強制將 isDeleted 改為 false
+            await setDoc(doc(db, "budgets", bId), { 
+                month: currentMonth, member: m, type: t, category: c, 
+                [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, 
+                isDeleted: false 
+            }, { merge: true });
         };
 
         window.saveActualDirect = async (m, t, c, v, cur) => {
@@ -160,15 +165,20 @@
         window.delItem = async (id) => { if(confirm("確定刪除？")) await deleteDoc(doc(db, "expenses", id)); };
         window.changeMonth = (o) => { let [y, m] = currentMonth.split('-').map(Number); m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} currentMonth = `${y}-${String(m).padStart(2,'0')}`; render(); updateMonthSelector(); };
 
-        // ★★★ 新增項目核心 ★★★
+        // ★★★ 核心修正：新增項目功能 (onclick 專屬) ★★★
         window.cardAddProject = async (m, t) => {
-            const nameEl = document.getElementById(`cAddCat-${m}-${t}`);
-            const amtEl = document.getElementById(`cAddAmt-${m}-${t}`);
-            const name = nameEl.value;
-            const amt = amtEl.value || 0;
-            if (!name) return;
-            nameEl.value = ''; amtEl.value = '';
-            await saveBudget(m, t, name, 'amount', amt);
+            const nameInput = document.getElementById(`cAddCat-${m}-${t}`);
+            const amtInput = document.getElementById(`cAddAmt-${m}-${t}`);
+            const name = nameInput.value.trim();
+            const amt = amtInput.value || 0; // 不填金額預設為 0
+            if (!name) { alert("請輸入項目名稱"); return; }
+            
+            // 直接呼叫儲存函數
+            await window.saveBudget(m, t, name, 'amount', amt);
+            
+            // 清空輸入框
+            nameInput.value = '';
+            amtInput.value = '';
         };
 
         const setup = () => {
@@ -220,12 +230,13 @@
                         if(type === '收入') estI += eS; else { estE += eS; pieD[cat] = (pieD[cat] || 0) + eS; }
                         let cl = (type === '支出' && aS > eS) || (type === '收入' && aS < eS) ? 'budget-warning' : 'budget-safe';
                         
-                        // ★★★ 刪除按鈕與數值左右並排 ★★★
+                        // ★★★ 核心修正：刪除鈕與左右並排數值 ★★★
                         items += `<div class="item-row" data-cat="${cat}"><span class="handle">〓</span><div class="name-area"><span class="item-del-btn" onclick="deleteCategory('${m}','${type}','${cat}')">×</span><input type="text" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${m}','${type}','${cat}','name',this.value)"></div><div class="val-container"><input type="number" class="input-box ${cl}" value="${eS}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${m}','${type}','${cat}','amount',this.value)"><input type="number" class="input-box actual-input" value="${aS}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${m}', '${type}', '${cat}', this.value, ${aS})" onkeydown="if(event.key==='Enter') this.blur()"></div></div>`;
                     });
                     body += `<div id="list-${m.replace(/\s+/g, '')}-${type}">${items}</div>`;
                     body += `<div class="subtotal-row"><span style="padding-left:36px">合計:</span><div class="val-container"><div class="input-box" style="border:none;background:transparent">${sE.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8">${sA.toLocaleString()}</div></div></div>`;
-                    // ★★★ 新增按鈕明確指向 cardAddProject ★★★
+                    
+                    // ★★★ 核心修正：藍色「＋」按鈕現在專屬 cardAddProject ★★★
                     body += `<div class="inline-add-box"><input type="text" id="cAddCat-${m}-${type}" class="inline-add-name" placeholder="加${type}..."><input type="number" id="cAddAmt-${m}-${type}" class="inline-add-amt" placeholder="預算"><button type="button" onclick="cardAddProject('${m}','${type}')" class="inline-add-btn">+</button></div>`;
                 });
                 html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
