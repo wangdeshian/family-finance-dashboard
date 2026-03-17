@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 跨月攤提進階版</title>
+    <title>請好好記帳 - 換月零死角最終版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -33,12 +33,11 @@
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 6px; }
         .handle { color: #ddd; cursor: grab; padding: 0 6px; font-size: 1.2rem; flex-shrink: 0; }
         
-        /* ★★★ 名稱與攤提按鈕佈局 ★★★ */
+        /* 攤提按鈕佈局 */
         .name-col { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 4px; }
         .name-row { display: flex; align-items: center; width: 100%; gap: 6px; }
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.95rem; flex: 1; min-width: 40px; color: #444; outline: none; }
         
-        /* 攤提按鈕樣式 */
         .acc-toggle { font-size: 0.65rem; padding: 3px 6px; border-radius: 6px; cursor: pointer; border: 1px solid #ccc; white-space: nowrap; flex-shrink: 0; user-select: none; }
         .acc-on { background: #e8f5e9; color: #27ae60; border-color: #27ae60; }
         .acc-off { background: #f8f9fa; color: #aaa; border-color: #eee; }
@@ -59,6 +58,7 @@
         .inline-add-amt { flex: 1; min-width: 0; border: 1px solid #ddd !important; padding: 10px !important; border-radius: 10px !important; text-align: right; background: #fff !important; font-size: 0.9rem !important; }
         .inline-add-btn { background: #1a73e8; border: none; border-radius: 10px; width: 45px; height: 45px; color: white; cursor: pointer; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
+        /* 圖表完美置中與無空白 */
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
         .chart-box { display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 15px 10px; gap: 5px; }
         .chart-container { flex: 1; max-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -76,7 +76,7 @@
                 <strong>習慣看到錢了嗎?</strong>
                 <div class="month-nav">
                     <button class="nav-btn" onclick="changeMonth(-1)">◀</button>
-                    <select id="monthSelect" class="month-select-style" onchange="currentMonth = this.value; window.syncDateInput(); render();"></select>
+                    <select id="monthSelect" class="month-select-style" onchange="window.selectMonth(this.value)"></select>
                     <button class="nav-btn" onclick="changeMonth(1)">▶</button>
                 </div>
             </div>
@@ -171,12 +171,9 @@
             await setDoc(doc(db, "budgets", bId), { month: currentMonth, member: m, type: t, category: c, [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, isDeleted: false }, { merge: true });
         };
 
-        // ★★★ 切換攤提狀態 ★★★
         window.toggleAcc = async (m, t, c, isAccVal) => {
             isEditing = false;
-            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { 
-                month: currentMonth, member: m, type: t, category: c, isAcc: isAccVal, isDeleted: false 
-            }, { merge: true });
+            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { month: currentMonth, member: m, type: t, category: c, isAcc: isAccVal, isDeleted: false }, { merge: true });
         };
 
         window.saveActualDirect = async (m, t, c, v, cur) => {
@@ -203,12 +200,23 @@
             else { document.getElementById('fDate').value = currentMonth + "-01"; }
         };
 
+        // ★★★ 換月強制解鎖函數 ★★★
+        window.selectMonth = (val) => {
+            isEditing = false; // 破除一切鎖定
+            currentMonth = val;
+            window.syncDateInput();
+            updateMonthSelector();
+            render();
+        };
+
         window.changeMonth = (o) => { 
-            isEditing = false; 
+            isEditing = false; // 破除一切鎖定
             let [y, m] = currentMonth.split('-').map(Number); 
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
             currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
-            window.syncDateInput(); updateMonthSelector(); render(); 
+            window.syncDateInput(); 
+            updateMonthSelector(); 
+            render(); 
         };
 
         window.cardAddProject = async (m, t) => {
@@ -280,7 +288,6 @@
                             const eS = Number(docObj.amount) || 0; 
                             const isAcc = docObj.isAcc === true;
 
-                            // ★★★ 攤提累計算法 ★★★
                             let accTotal = 0;
                             if (isAcc) {
                                 Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= currentMonth).forEach(b => { accTotal += Number(b.amount) || 0; });
