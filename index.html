@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 換月零死角最終版</title>
+    <title>請好好記帳 - 斬斷殘留最終版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -29,11 +29,9 @@
         .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; height: 55px; margin-top: 15px; font-size: 1.2rem; }
 
         .middle-section { display: flex; flex-direction: column; gap: 15px; }
-        .item-list { display: flex; flex-direction: column; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 6px; }
         .handle { color: #ddd; cursor: grab; padding: 0 6px; font-size: 1.2rem; flex-shrink: 0; }
         
-        /* 攤提按鈕佈局 */
         .name-col { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 4px; }
         .name-row { display: flex; align-items: center; width: 100%; gap: 6px; }
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.95rem; flex: 1; min-width: 40px; color: #444; outline: none; }
@@ -58,7 +56,6 @@
         .inline-add-amt { flex: 1; min-width: 0; border: 1px solid #ddd !important; padding: 10px !important; border-radius: 10px !important; text-align: right; background: #fff !important; font-size: 0.9rem !important; }
         .inline-add-btn { background: #1a73e8; border: none; border-radius: 10px; width: 45px; height: 45px; color: white; cursor: pointer; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
-        /* 圖表完美置中與無空白 */
         .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
         .chart-box { display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 15px 10px; gap: 5px; }
         .chart-container { flex: 1; max-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -159,34 +156,39 @@
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
 
-        window.deleteCategory = async (m, t, c) => {
+        // ★★★ 破除記憶殘留：強制綁定 monthStr 確保不寫錯月份 ★★★
+        window.deleteCategory = async (monthStr, m, t, c) => {
             if (!confirm(`確定移除「${c}」？`)) return;
-            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { month: currentMonth, member: m, type: t, category: c, amount: 0, isDeleted: true }, { merge: true });
+            await setDoc(doc(db, "budgets", `${monthStr}_${m}_${c}`), { month: monthStr, member: m, type: t, category: c, amount: 0, isDeleted: true }, { merge: true });
         };
 
-        window.saveBudget = async (m, t, c, f, v) => {
+        window.saveBudget = async (monthStr, m, t, c, f, v) => {
             isEditing = false;
-            const bId = `${currentMonth}_${m}_${c}`;
+            const bId = `${monthStr}_${m}_${c}`;
             const num = Math.round(Number(v)) || 0;
-            await setDoc(doc(db, "budgets", bId), { month: currentMonth, member: m, type: t, category: c, [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, isDeleted: false }, { merge: true });
+            await setDoc(doc(db, "budgets", bId), { month: monthStr, member: m, type: t, category: c, [f === 'amount' ? 'amount' : 'category']: f === 'amount' ? num : v, isDeleted: false }, { merge: true });
         };
 
-        window.toggleAcc = async (m, t, c, isAccVal) => {
+        window.toggleAcc = async (monthStr, m, t, c, isAccVal) => {
             isEditing = false;
-            await setDoc(doc(db, "budgets", `${currentMonth}_${m}_${c}`), { month: currentMonth, member: m, type: t, category: c, isAcc: isAccVal, isDeleted: false }, { merge: true });
+            await setDoc(doc(db, "budgets", `${monthStr}_${m}_${c}`), { month: monthStr, member: m, type: t, category: c, isAcc: isAccVal, isDeleted: false }, { merge: true });
         };
 
-        window.saveActualDirect = async (m, t, c, v, cur) => {
+        window.saveActualDirect = async (monthStr, m, t, c, v, cur) => {
             isEditing = false;
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
+            
             let targetDate = document.getElementById('fDate').value;
-            if (!targetDate.startsWith(currentMonth)) { targetDate = currentMonth + "-01"; }
+            // 如果輸入框是在舊月份觸發，強迫寫入那個月的 1 號
+            if (!targetDate.startsWith(monthStr)) { 
+                targetDate = monthStr + "-01"; 
+            }
             await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
         };
 
-        window.saveOrder = async (m, t, list) => {
-            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${currentMonth}_${m}_${cat}`), { month: currentMonth, member: m, type: t, category: cat, order: i }, { merge: true }));
+        window.saveOrder = async (monthStr, m, t, list) => {
+            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
             await Promise.all(ps);
         };
 
@@ -200,9 +202,8 @@
             else { document.getElementById('fDate').value = currentMonth + "-01"; }
         };
 
-        // ★★★ 換月強制解鎖函數 ★★★
         window.selectMonth = (val) => {
-            isEditing = false; // 破除一切鎖定
+            isEditing = false;
             currentMonth = val;
             window.syncDateInput();
             updateMonthSelector();
@@ -210,7 +211,7 @@
         };
 
         window.changeMonth = (o) => { 
-            isEditing = false; // 破除一切鎖定
+            isEditing = false; 
             let [y, m] = currentMonth.split('-').map(Number); 
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
             currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
@@ -219,13 +220,13 @@
             render(); 
         };
 
-        window.cardAddProject = async (m, t) => {
+        window.cardAddProject = async (monthStr, m, t) => {
             const nameEl = document.getElementById(`cAddCat-${m}-${t}`);
             const amtEl = document.getElementById(`cAddAmt-${m}-${t}`);
             const name = nameEl.value.trim();
             const amt = amtEl.value || 0;
             if (!name) return;
-            await window.saveBudget(m, t, name, 'amount', amt);
+            await window.saveBudget(monthStr, m, t, name, 'amount', amt);
             nameEl.value = ''; amtEl.value = '';
         };
 
@@ -298,25 +299,27 @@
                             if(type === '收入') estI += eS; else { estE += eS; pieBData[cat] = (pieBData[cat] || 0) + eS; }
                             let cl = (type === '支出' && aS > eS) || (type === '收入' && aS < eS) ? 'budget-warning' : 'budget-safe';
                             
+                            // ★★★ 破除記憶殘留：給每個 input 加上專屬 currentMonth 的獨立 ID，並把 currentMonth 鎖進函數裡 ★★★
                             items += `<div class="item-row" data-cat="${cat}">
                                 <span class="handle">〓</span>
                                 <div class="name-col">
                                     <div class="name-row">
-                                        <input type="text" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${m}','${type}','${cat}','name',this.value)">
-                                        <span class="acc-toggle ${isAcc ? 'acc-on' : 'acc-off'}" onclick="toggleAcc('${m}','${type}','${cat}', ${!isAcc})">${isAcc ? '🔄 攤提' : '➖ 單月'}</span>
+                                        <input type="text" id="name-${m}-${type}-${cat}-${currentMonth}" class="cat-name-input" value="${cat}" onfocus="isEditing=true" onblur="saveBudget('${currentMonth}','${m}','${type}','${cat}','name',this.value)">
+                                        <span class="acc-toggle ${isAcc ? 'acc-on' : 'acc-off'}" onclick="toggleAcc('${currentMonth}','${m}','${type}','${cat}', ${!isAcc})">${isAcc ? '🔄 攤提' : '➖ 單月'}</span>
                                     </div>
                                     ${isAcc ? `<span class="acc-badge">累計結餘: ${accTotal.toLocaleString()}</span>` : ''}
                                 </div>
                                 <div class="val-container">
-                                    <input type="number" class="input-box ${cl}" value="${eS}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${m}','${type}','${cat}','amount',this.value)">
-                                    <input type="number" class="input-box actual-input" value="${aS}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${m}', '${type}', '${cat}', this.value, ${aS})" onkeydown="if(event.key==='Enter') this.blur()">
-                                    <span class="item-del-btn" onclick="deleteCategory('${m}','${type}','${cat}')">×</span>
+                                    <input type="number" id="est-${m}-${type}-${cat}-${currentMonth}" class="input-box ${cl}" value="${eS}" onfocus="isEditing=true;this.select()" onblur="saveBudget('${currentMonth}','${m}','${type}','${cat}','amount',this.value)">
+                                    <input type="number" id="act-${m}-${type}-${cat}-${currentMonth}" class="input-box actual-input" value="${aS}" onfocus="isEditing=true;this.select()" onblur="saveActualDirect('${currentMonth}','${m}', '${type}', '${cat}', this.value, ${aS})" onkeydown="if(event.key==='Enter') this.blur()">
+                                    <span class="item-del-btn" onclick="deleteCategory('${currentMonth}','${m}','${type}','${cat}')">×</span>
                                 </div>
                             </div>`;
                         });
                         body += `<div id="list-${m.replace(/\s+/g, '')}-${type}">${items}</div>`;
                         body += `<div class="subtotal-row"><span style="padding-left:36px">合計:</span><div class="val-container" style="padding-right:20px;"><div class="input-box" style="border:none;background:transparent">${sE.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8">${sA.toLocaleString()}</div></div></div>`;
-                        body += `<div class="inline-add-area"><div class="inline-add-box"><input type="text" id="cAddCat-${m}-${type}" class="inline-add-name" placeholder="新${type}名稱..."><input type="number" id="cAddAmt-${m}-${type}" class="inline-add-amt" placeholder="預算"><button type="button" onclick="cardAddProject('${m}','${type}')" class="inline-add-btn">+</button></div></div>`;
+                        // ★★★ 新增按鈕也鎖死 currentMonth ★★★
+                        body += `<div class="inline-add-area"><div class="inline-add-box"><input type="text" id="cAddCat-${m}-${type}" class="inline-add-name" placeholder="新${type}名稱..."><input type="number" id="cAddAmt-${m}-${type}" class="inline-add-amt" placeholder="預算"><button type="button" onclick="cardAddProject('${currentMonth}','${m}','${type}')" class="inline-add-btn">+</button></div></div>`;
                     });
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
                 });
@@ -330,7 +333,7 @@
                     pieA.data.labels = Object.keys(pieAData); pieA.data.datasets[0].data = Object.values(pieAData); pieA.update();
                 }
 
-                members.forEach(m => ['收入','支出'].forEach(t => { const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${t}`); if(el) Sortable.create(el, { handle:'.handle', animation:150, onEnd: async () => { isEditing=true; await saveOrder(m,t,Array.from(el.children).map(r=>r.getAttribute('data-cat'))); isEditing=false; } }); }));
+                members.forEach(m => ['收入','支出'].forEach(t => { const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${t}`); if(el) Sortable.create(el, { handle:'.handle', animation:150, onEnd: async () => { isEditing=true; await saveOrder(currentMonth, m, t, Array.from(el.children).map(r=>r.getAttribute('data-cat'))); isEditing=false; } }); }));
             } catch (e) {
                 console.error("渲染出錯了！", e);
             }
