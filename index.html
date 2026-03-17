@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 儲存目標版</title>
+    <title>請好好記帳 - 自訂連動版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -13,7 +13,6 @@
         .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); padding: 12px; display: flex; flex-direction: column; }
         .card-title { font-size: 0.95rem; font-weight: bold; margin-bottom: 8px; border-bottom: 2px solid #f0f2f5; padding-bottom: 6px; color: #1a73e8; }
         
-        /* 頂部導覽列：新增儲存目標 */
         .top-bar { background: #34495e; color: white; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; position: sticky; top: 0; z-index: 100; }
         .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
         .save-target-row { display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; gap: 8px; justify-content: center; }
@@ -31,9 +30,10 @@
         .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; height: 42px; width: 100%; margin-top: 5px; font-size: 0.95rem; }
 
         .middle-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed #eee; width: 100%; gap: 4px; }
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; width: 100%; gap: 4px; }
         .name-area { display: flex; align-items: center; flex: 1; min-width: 0; gap: 2px; } 
         .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.85rem; width: 100%; color: #555; outline: none; }
+        
         .val-container { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
         .input-box { width: 60px; border: 1px solid #e0e0e0; text-align: right; font-weight: bold; border-radius: 6px; padding: 4px; font-size: 0.8rem; }
         
@@ -43,6 +43,13 @@
         
         .del-btn { color: #ccc; cursor: pointer; font-size: 1rem; padding: 2px; flex-shrink: 0; }
         .item-del-btn { color: #ffbcbc; cursor: pointer; font-size: 0.9rem; flex-shrink: 0; }
+
+        /* 卡片底部新增區樣式 */
+        .inline-add-box { margin-top: 6px; display: flex; gap: 4px; padding: 4px 0; }
+        .inline-add-box input { border: 1px solid #eee; border-radius: 6px; padding: 6px; font-size: 0.75rem; }
+        .inline-add-name { flex: 2; }
+        .inline-add-amt { flex: 1; }
+        .inline-add-btn { background: #eee; border: none; border-radius: 6px; padding: 0 10px; cursor: pointer; color: #666; font-weight: bold; }
 
         .bottom-grid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; }
         .chart-box { display: flex; flex-direction: row; gap: 5px; justify-content: space-around; padding: 8px; }
@@ -55,12 +62,12 @@
         .bal-val { font-weight: bold; font-size: 0.85rem; }
         .acc-bal { color: #8e44ad; font-size: clamp(1rem, 4vw, 1.4rem); border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px; }
 
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+
         @media (max-width: 600px) {
             .middle-section { grid-template-columns: 1fr; }
             .bottom-grid { grid-template-columns: 1fr; }
-            .chart-box { flex-direction: row; } 
             .input-box { width: 58px; }
-            .cat-name-input { font-size: 0.8rem; }
         }
     </style>
 </head>
@@ -103,7 +110,7 @@
             </div>
             <div class="card bal-card">
                 <div class="bal-row"><span class="bal-label">預估節餘</span><span class="bal-val" id="estBal">0</span></div>
-                <div class="bal-row"><span class="bal-label">實際結餘 (扣除存款)</span><span class="bal-val" id="actBal">0</span></div>
+                <div class="bal-row"><span class="bal-label">實際結餘 (扣存後)</span><span class="bal-val" id="actBal">0</span></div>
                 <div class="bal-row" style="flex-direction: column; align-items: flex-start;">
                     <span class="bal-label">累積緩衝 (待付累計)</span>
                     <span class="bal-val acc-bal" id="accBal">NT$ 0</span>
@@ -111,7 +118,7 @@
             </div>
         </div>
 
-        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">流水帳紀錄</div><div style="overflow-x:auto"><table style="width:100%; border-collapse:collapse; font-size:0.75rem;"><tbody id="historyTbody"></tbody></table></div></div>
+        <div class="card" style="min-height: auto;"><div class="card-title" id="historyTitle">流水帳紀錄</div><div style="overflow-x:auto"><table class="history-table"><tbody id="historyTbody"></tbody></table></div></div>
     </div>
 
     <script type="module">
@@ -142,13 +149,10 @@
 
         window.saveDate = async (id, newDate) => { if (id && newDate) await updateDoc(doc(db, "expenses", id), { date: newDate }); };
 
-        // 【核心優化】預估改 0 直接刪除項目與流水帳
         window.saveBudget = async (member, type, category, field, value) => {
             const numVal = Math.round(Number(value)) || 0;
             const budgetId = `${currentMonth}_${member}_${category}`;
-            
-            if (field === 'amount' && numVal === 0) {
-                // 如果預算改為 0，視為刪除該自訂項目及其所有當月流水帳
+            if (field === 'amount' && numVal === 0 && id) { // 修改為歸零即刪除
                 await deleteCategory(member, type, category, false); 
             } else {
                 await setDoc(doc(db, "budgets", budgetId), {
@@ -157,7 +161,6 @@
             }
         };
 
-        // 【核心優化】實際改 0 直接刪除流水帳
         window.saveActual = async (id, member, type, category, newVal) => {
             const val = Math.round(Number(newVal)) || 0;
             if (id) {
@@ -168,7 +171,6 @@
             }
         };
 
-        // 更新儲存目標
         window.updateSaveTarget = async (val) => {
             await setDoc(doc(db, "settings", `${currentMonth}_save`), { month: currentMonth, target: Number(val) || 0 });
         };
@@ -180,6 +182,15 @@
             const snap = await getDocs(q);
             const promises = snap.docs.filter(d => d.data().date.startsWith(currentMonth)).map(d => deleteDoc(doc(db, "expenses", d.id)));
             await Promise.all(promises);
+        };
+
+        // 【新增功能】卡片內快速自訂項目並清空輸入框
+        window.cardAddProject = async (m, t) => {
+            const nameEl = document.getElementById(`cAddCat-${m}-${t}`);
+            const amtEl = document.getElementById(`cAddAmt-${m}-${t}`);
+            if (!nameEl.value || !amtEl.value) return alert("請填寫名稱與預估金");
+            await saveBudget(m, t, nameEl.value, 'amount', amtEl.value);
+            nameEl.value = ''; amtEl.value = '';
         };
 
         window.changeMonth = (offset) => {
@@ -194,13 +205,10 @@
             onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => { allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() })); updateMonthSelector(); render(); });
             onSnapshot(query(collection(db, "settings")), (snap) => { 
                 const s = snap.docs.find(d => d.id === `${currentMonth}_save`)?.data();
-                // 儲存目標繼承邏輯
                 if (!s) {
                     const lastSave = snap.docs.filter(d => d.id.includes('_save')).sort((a,b) => b.id.localeCompare(a.id))[0]?.data();
                     document.getElementById('saveTargetInput').value = lastSave?.target || 0;
-                } else {
-                    document.getElementById('saveTargetInput').value = s.target || 0;
-                }
+                } else { document.getElementById('saveTargetInput').value = s.target || 0; }
                 render(); 
             });
         };
@@ -217,6 +225,7 @@
         window.updateCategoryDropdown = () => {
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
+            // 抓取當前成員在「所有時間點」出現過的自訂分類
             const dynamicCats = Object.values(allBudgets).filter(b => b.member === m && b.type === t).map(b => b.category);
             const defMap = {
                 '爸爸': { 收入: ['薪資','股票','投資'], 支出: ['貸款','信用卡','私人','加油費','學費'] },
@@ -240,7 +249,6 @@
                 else { actE += amt; (target.支出[d.category] = target.支出[d.category] || []).push({id: d.id, v: amt}); pieActData[d.category] = (pieActData[d.category] || 0) + amt; }
             });
 
-            // 累積緩衝金計算
             const allMonthsInDb = [...new Set([...allData.map(d => d.date.slice(0,7)), ...Object.values(allBudgets).map(b => b.month)])].sort();
             allMonthsInDb.forEach(m => {
                 let mEstI = 0, mEstE = 0, mActI = 0, mActE = 0;
@@ -288,17 +296,16 @@
                                 </div>
                             </div>`;
                     });
+                    // 【補回功能】卡片內快速自訂區
+                    items += `<div class="inline-add-box"><input type="text" id="cAddCat-${m}-${s.k}" class="inline-add-name" placeholder="名稱"><input type="number" id="cAddAmt-${m}-${s.k}" class="inline-add-amt" placeholder="預估"><button class="inline-add-btn" onclick="cardAddProject('${m}','${s.k}')">+</button></div>`;
                 });
                 html += `<div class="card"><div class="card-title">${m === '共同支出' ? '🏠 共同收入/支出' : m}</div>${items}</div>`;
             });
             document.getElementById('cardsContainer').innerHTML = html;
             document.getElementById('estBal').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
-            
-            // 【實際結餘連動儲存目標】實際結餘 = (實際收入 - 實際支出) - 存款目標
             const actBalTotal = Math.round(actI - actE - currentSaveTarget);
             document.getElementById('actBal').innerText = `NT$ ${actBalTotal.toLocaleString()}`;
             document.getElementById('actBal').style.color = actBalTotal < 0 ? '#e74c3c' : '#27ae60';
-            
             document.getElementById('accBal').innerText = `NT$ ${Math.round(totalAccBuffer).toLocaleString()}`;
             document.getElementById('historyTbody').innerHTML = currentMonthData.map(d => `<tr><td style="padding:10px 0"><input type="date" style="border:none;background:transparent;width:110px;" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td>${d.member.slice(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b class="del-btn" onclick="delItem('${d.id}')">×</b></td></tr>`).join('');
             pieB.data.labels = Object.keys(pieBudData); pieB.data.datasets[0].data = Object.values(pieBudData); pieB.update();
