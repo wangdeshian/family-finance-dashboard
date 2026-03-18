@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 乾淨磁吸完美版</title>
+    <title>請好好記帳 - 鐵壁防護最終版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -68,6 +68,8 @@
 </head>
 <body>
     <div class="dashboard-container">
+        <div id="errorBox"></div>
+
         <div class="top-bar">
             <div class="top-row">
                 <strong>習慣看到錢了嗎?</strong>
@@ -155,8 +157,11 @@
 
         const initCharts = () => {
             const opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true, aspectRatio: 1, layout: { padding: 0 } };
-            const ctxB = document.getElementById('pieBudget')?.getContext('2d');
-            const ctxA = document.getElementById('pieActual')?.getContext('2d');
+            const elB = document.getElementById('pieBudget');
+            const elA = document.getElementById('pieActual');
+            const ctxB = elB ? elB.getContext('2d') : null;
+            const ctxA = elA ? elA.getContext('2d') : null;
+            
             if(ctxB && ctxA) {
                 pieB = new Chart(ctxB, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: opt });
                 pieA = new Chart(ctxA, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: opt });
@@ -171,7 +176,7 @@
             const latest = {};
             allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) latest[b.category] = b; });
             
-            const defaultCats = defMap[m]?.[t] || [];
+            const defaultCats = (defMap[m] && defMap[m][t]) ? defMap[m][t] : [];
             defaultCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, isDeleted: false }; });
             
             const finalCats = Object.keys(latest).map(k => latest[k]).filter(d => !d.isDeleted).map(d => d.category);
@@ -214,7 +219,7 @@
         
         window.syncDateInput = () => {
             const todayStr = new Date().toISOString().slice(0,10);
-            document.getElementById('fDate').value = todayStr.startsWith(currentMonth) ? todayStr : currentMonth + "-01";
+            document.getElementById('fDate').value = todayStr.indexOf(currentMonth) === 0 ? todayStr : currentMonth + "-01";
         };
 
         window.selectMonth = (val) => {
@@ -256,18 +261,19 @@
         };
 
         const updateMonthSelector = () => {
-            const monthsSet = new Set([currentMonth]);
+            const monthsArr = [currentMonth];
             const today = new Date();
             const realThisMonth = today.toISOString().slice(0,7);
-            monthsSet.add(realThisMonth);
+            if (monthsArr.indexOf(realThisMonth) === -1) monthsArr.push(realThisMonth);
             
             let [y, m] = realThisMonth.split('-').map(Number); m += 1; if(m>12){y++;m=1;}
-            monthsSet.add(`${y}-${String(m).padStart(2,'0')}`);
+            const realNextMonth = `${y}-${String(m).padStart(2,'0')}`;
+            if (monthsArr.indexOf(realNextMonth) === -1) monthsArr.push(realNextMonth);
             
-            allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if (mStr) monthsSet.add(mStr); });
-            Object.values(allBudgets).forEach(b => { if (b.month) monthsSet.add(String(b.month)); });
+            allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if (mStr && monthsArr.indexOf(mStr) === -1) monthsArr.push(mStr); });
+            Object.keys(allBudgets).map(k => allBudgets[k]).forEach(b => { if (b.month && monthsArr.indexOf(String(b.month)) === -1) monthsArr.push(String(b.month)); });
             
-            const months = [...monthsSet].sort().reverse(); 
+            const months = monthsArr.sort().reverse(); 
             document.getElementById('monthSelect').innerHTML = months.map(mStr => `<option value="${mStr}" ${mStr===currentMonth?'selected':''}>${mStr}</option>`).join('');
             document.getElementById('fMember').innerHTML = members.map(mStr => `<option value="${mStr}">${mStr === '共同支出' ? '🏠 共同' : mStr}</option>`).join('');
             updateCategoryDropdown();
@@ -307,10 +313,10 @@
                     }
                 });
                 
-                const allMonthsSet = new Set([currentMonth]);
-                allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth) allMonthsSet.add(mStr); });
-                Object.values(allBudgets).forEach(b => { if(b.month && String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
-                const sortedMonths = [...allMonthsSet].sort();
+                const allMonthsArr = [currentMonth];
+                allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth && allMonthsArr.indexOf(mStr) === -1) allMonthsArr.push(mStr); });
+                Object.keys(allBudgets).map(k => allBudgets[k]).forEach(b => { if(b.month && String(b.month) <= currentMonth && allMonthsArr.indexOf(String(b.month)) === -1) allMonthsArr.push(String(b.month)); });
+                const sortedMonths = allMonthsArr.sort();
 
                 let html = '';
                 let globalSinkingFundTotal = 0;
@@ -326,7 +332,7 @@
                         const latest = {};
                         allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) latest[b.category] = b; });
                         
-                        const defCats = defMap[m]?.[type] || [];
+                        const defCats = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                         defCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, amount: 0, order: 999, isDeleted: false, isAcc: false }; });
 
                         const activeCats = Object.keys(latest).map(k => latest[k]).filter(d => !d.isDeleted).sort((a,b) => {
@@ -345,8 +351,10 @@
                                     const pastForSm = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
                                     let lSnap = null;
                                     pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
+                                    
+                                    const defMapType = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                                     if (lSnap && !lSnap.isDeleted) accTotal += Number(lSnap.amount) || 0;
-                                    else if (!lSnap && defCats.includes(cat)) accTotal += 0; 
+                                    else if (!lSnap && defMapType.indexOf(cat) !== -1) accTotal += 0; 
                                 });
                                 globalSinkingFundTotal += accTotal;
                             }
@@ -366,24 +374,19 @@
                 
                 document.getElementById('sinkingFundEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
                 document.getElementById('accSaveEl').innerText = `NT$ ${accSaveTotal.toLocaleString()}`;
-                
                 document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE - curS).toLocaleString()}`;
                 document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
-
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
-                // ★★★ 嚴格降級：全數使用 indexOf，拔除 includes 與 some ★★★
                 if (pieB && pieA) {
                     var getCategoryColor = function(catName) {
                         var name = String(catName || '').toLowerCase();
-                        
                         if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('保養') !== -1 || name.indexOf('停車') !== -1 || name.indexOf('罰單') !== -1 || name.indexOf('過路') !== -1) return '#2ecc71'; 
                         if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1 || name.indexOf('fb') !== -1 || name.indexOf('google') !== -1 || name.indexOf('軟體') !== -1 || name.indexOf('導演') !== -1 || name.indexOf('通訊') !== -1 || name.indexOf('手機') !== -1) return '#3498db'; 
                         if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1 || name.indexOf('娛樂') !== -1 || name.indexOf('遊戲') !== -1 || name.indexOf('影音') !== -1 || name.indexOf('玩具') !== -1 || name.indexOf('訂閱') !== -1) return '#9b59b6'; 
                         if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('買') !== -1 || name.indexOf('衣') !== -1 || name.indexOf('錶') !== -1 || name.indexOf('寵物') !== -1 || name.indexOf('雜支') !== -1 || name.indexOf('生活') !== -1 || name.indexOf('樂') !== -1) return '#f39c12'; 
                         if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保險') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1 || name.indexOf('稅') !== -1 || name.indexOf('息') !== -1) return '#e74c3c'; 
-                        
                         return '#bdc3c7'; 
                     };
 
@@ -410,6 +413,7 @@
                 }));
             } catch (e) {
                 console.error(e);
+                document.getElementById('errorBox').innerHTML = '<div style="background:red;color:white;padding:15px;margin-bottom:10px;border-radius:8px;font-weight:bold;">系統畫圖防護啟動：<br>' + e.message + '<br>請截圖此畫面給工程師！</div>';
             }
         };
 
