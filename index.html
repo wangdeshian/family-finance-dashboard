@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 徹底淨化版</title>
+    <title>請好好記帳 - 終極防彈解凍版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -29,6 +29,7 @@
         .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; height: 55px; margin-top: 15px; font-size: 1.2rem; }
 
         .middle-section { display: flex; flex-direction: column; gap: 15px; }
+        .item-list { display: flex; flex-direction: column; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 6px; }
         .handle { color: #ddd; cursor: grab; padding: 0 6px; font-size: 1.2rem; flex-shrink: 0; }
         
@@ -150,9 +151,9 @@
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
             if (!m || !t) return;
-            const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === t && String(b.month) <= currentMonth);
+            const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === t && String(b.month || '') <= currentMonth);
             const latest = {};
-            allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month) > String(latest[b.category].month)) { latest[b.category] = b; } });
+            allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
             const defaultCats = (defMap[m]?.[t] || []);
             defaultCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, isDeleted: false }; });
             const finalCats = Object.values(latest).filter(d => !d.isDeleted).map(d => d.category);
@@ -239,7 +240,7 @@
         };
 
         const updateMonthSelector = () => {
-            const dataMonths = allData.map(d => d.date.slice(0,7));
+            const dataMonths = allData.map(d => (d.date || '').slice(0,7)).filter(Boolean);
             const budgetMonths = Object.values(allBudgets).map(b => b.month).filter(Boolean);
             const today = new Date();
             const realThisMonth = today.toISOString().slice(0,7);
@@ -257,33 +258,48 @@
             if(isEditing) return;
             try {
                 let estI = 0, estE = 0, actI = 0, actE = 0, pieBData = {}, pieAData = {};
+                
+                // ★★★ 終極防護罩：確保即使讀到沒有名字的假帳也不會當機 ★★★
                 const res = {}; members.forEach(m => res[m] = { 收入: {}, 支出: {} });
-                allData.filter(d => d.date.startsWith(currentMonth)).forEach(d => {
+                allData.filter(d => (d.date || '').startsWith(currentMonth)).forEach(d => {
                     const amt = Math.round(Number(d.amount)) || 0;
-                    if (d.type === '收入') { actI += amt; res[d.member].收入[d.category] = (res[d.member].收入[d.category] || 0) + amt; }
-                    else { actE += amt; res[d.member].支出[d.category] = (res[d.member].支出[d.category] || 0) + amt; pieAData[d.category] = (pieAData[d.category] || 0) + amt; }
+                    const mName = d.member || '未分類';
+                    const tName = d.type || '支出';
+                    const cName = d.category || '未分類';
+                    
+                    if (!res[mName]) res[mName] = { 收入: {}, 支出: {} };
+                    if (!res[mName][tName]) res[mName][tName] = {};
+                    
+                    if (tName === '收入') { 
+                        actI += amt; 
+                        res[mName][tName][cName] = (res[mName][tName][cName] || 0) + amt; 
+                    } else { 
+                        actE += amt; 
+                        res[mName][tName][cName] = (res[mName][tName][cName] || 0) + amt; 
+                        pieAData[cName] = (pieAData[cName] || 0) + amt; 
+                    }
                 });
 
                 const curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
-                // ★★★ 計算歷史所有出現過的月份 (用於攤提累計演算法) ★★★
                 const allMonthsSet = new Set();
-                allData.forEach(d => { const mStr = d.date.slice(0,7); if(mStr <= currentMonth) allMonthsSet.add(mStr); });
-                Object.values(allBudgets).forEach(b => { if(String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
+                allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth) allMonthsSet.add(mStr); });
+                Object.values(allBudgets).forEach(b => { if(b.month && String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
                 allMonthsSet.add(currentMonth);
                 const sortedMonths = [...allMonthsSet].sort();
 
                 let html = '';
                 members.forEach(m => {
+                    if (!res[m]) res[m] = { 收入: {}, 支出: {} }; // 雙重防護
                     let body = '';
                     ['收入','支出'].forEach(type => {
                         let sE = 0, sA = 0;
                         body += `<div style="font-size:0.7rem; color:#999; margin:15px 0 5px 0;">▼ ${type}</div>`;
                         
-                        const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === type && String(b.month) <= currentMonth);
+                        const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === type && String(b.month || '') <= currentMonth);
                         const latest = {};
-                        allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month) > String(latest[b.category].month)) { latest[b.category] = b; } });
+                        allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
                         const defCats = defMap[m]?.[type] || [];
                         defCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, amount: 0, order: 999, isDeleted: false, isAcc: false }; });
 
@@ -291,28 +307,15 @@
                         
                         let items = '';
                         activeCats.forEach(docObj => {
-                            const cat = docObj.category;
+                            const cat = docObj.category || '未分類';
                             const aS = res[m][type][cat] || 0;
                             const eS = Number(docObj.amount) || 0; 
                             const isAcc = docObj.isAcc === true;
 
-                            // ★★★ 攤提累計史詩級演算法升級 ★★★
                             let accTotal = 0;
                             if (isAcc) {
-                                // 扣除歷史所有實際支出
-                                allData.filter(d => d.member === m && d.type === type && d.category === cat && String(d.date.slice(0,7)) <= currentMonth).forEach(d => { accTotal -= Number(d.amount) || 0; });
-                                
-                                // 精準疊加歷史每個月的「有效預算」
-                                sortedMonths.forEach(sm => {
-                                    const pastForSm = Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
-                                    let lSnap = null;
-                                    pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
-                                    if (lSnap && !lSnap.isDeleted) {
-                                        accTotal += Number(lSnap.amount) || 0;
-                                    } else if (!lSnap && (defMap[m]?.[type] || []).includes(cat)) {
-                                        accTotal += 0; // 預設項目若無預算紀錄則視為 0
-                                    }
-                                });
+                                Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month || '') <= currentMonth).forEach(b => { accTotal += Number(b.amount) || 0; });
+                                allData.filter(d => d.member === m && d.type === type && d.category === cat && String(d.date || '').slice(0,7) <= currentMonth).forEach(d => { accTotal -= Number(d.amount) || 0; });
                             }
                             
                             sE += eS; sA += aS;
@@ -344,7 +347,9 @@
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('estBal').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
                 document.getElementById('actBal').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
-                document.getElementById('historyTbody').innerHTML = allData.filter(d => d.date.startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${d.member.substring(0,2)}</td><td>${d.category}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
+                
+                // ★★★ 終極防護罩：確保歷史表格的資料即使壞掉也能正常顯示讓您刪除 ★★★
+                document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
                 if (pieB && pieA) {
                     pieB.data.labels = Object.keys(pieBData); pieB.data.datasets[0].data = Object.values(pieBData); pieB.update();
