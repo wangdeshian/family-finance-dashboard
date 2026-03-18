@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 最強相容解凍版</title>
+    <title>請好好記帳 - 資金池精準加總版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -101,7 +101,7 @@
             <div class="card" style="padding: 15px;">
                 <div style="display: flex; width: 100%; align-items: center; text-align: center;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                        <div><div style="font-size:0.7rem; color:#888;">預計存款累積</div><div id="accSaveEl" style="font-weight:bold; font-size:1.25rem; color:#8e44ad;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">攤提結餘總計</div><div id="accSaveEl" style="font-weight:bold; font-size:1.25rem; color:#8e44ad;">0</div></div>
                         <div><div style="font-size:0.7rem; color:#888;">累積餘額合計</div><div id="accBalEl" style="font-weight:bold; font-size:1.25rem; color:#27ae60;">0</div></div>
                     </div>
                     <div style="width: 1px; background: #eee; height: 65px; margin: 0 10px;"></div>
@@ -155,7 +155,6 @@
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
         const defMap = { '王得賢': { 收入: ['薪資','股票'], 支出: ['貸款','信用卡','加油費'] }, '蔡書瑜': { 收入: ['薪資'], 支出: ['信用卡','加油費'] }, '王婕恩': { 支出: ['學費'] }, '王予陽': { 支出: ['學費'] }, '共同支出': { 收入: ['獎金'], 支出: ['房租','水電瓦斯'] } };
 
-        // ★★★ 拔除所有問號語法，改用傳統安全語法 ★★★
         const initCharts = () => {
             const opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true, aspectRatio: 1, layout: { padding: 0 } };
             const elB = document.getElementById('pieBudget');
@@ -177,7 +176,6 @@
             const latest = {};
             allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
             
-            // ★★★ 降級寫法 ★★★
             const defaultCats = (defMap[m] && defMap[m][t]) ? defMap[m][t] : [];
             defaultCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, isDeleted: false }; });
             
@@ -307,9 +305,9 @@
                 const curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
-                let accSave = 0;
+                let accSaveTotal = 0; // 歷史總存款目標 (保留供內部計算綠字使用)
                 for (let mKey in saveTargetMap) {
-                    if (mKey <= currentMonth) accSave += (Number(saveTargetMap[mKey]) || 0);
+                    if (mKey <= currentMonth) accSaveTotal += (Number(saveTargetMap[mKey]) || 0);
                 }
 
                 let accActI = 0, accActE = 0;
@@ -329,6 +327,10 @@
                 const sortedMonths = [...allMonthsSet].sort();
 
                 let html = '';
+                
+                // ★★★ 宣告資金池總計變數 ★★★
+                let globalSinkingFundTotal = 0;
+
                 members.forEach(m => {
                     if (!res[m]) res[m] = { 收入: {}, 支出: {} };
                     let body = '';
@@ -340,11 +342,9 @@
                         const latest = {};
                         allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
                         
-                        // ★★★ 降級寫法 ★★★
                         const defCats = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                         defCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, amount: 0, order: 999, isDeleted: false, isAcc: false }; });
 
-                        // ★★★ 降級排序寫法 ★★★
                         const activeCats = Object.values(latest).filter(d => !d.isDeleted).sort((a,b) => {
                             const orderA = a.order !== undefined ? a.order : 999;
                             const orderB = b.order !== undefined ? b.order : 999;
@@ -366,7 +366,6 @@
                                     let lSnap = null;
                                     pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
                                     
-                                    // ★★★ 降級寫法 ★★★
                                     const defMapType = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                                     
                                     if (lSnap && !lSnap.isDeleted) {
@@ -375,6 +374,9 @@
                                         accTotal += 0; 
                                     }
                                 });
+                                
+                                // ★★★ 將該項目的累計結餘，存入全域的資金池中 ★★★
+                                globalSinkingFundTotal += accTotal;
                             }
                             
                             sE += eS; sA += aS;
@@ -404,8 +406,12 @@
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
                 });
                 
-                document.getElementById('accSaveEl').innerText = `NT$ ${accSave.toLocaleString()}`;
-                document.getElementById('accBalEl').innerText = `NT$ ${(accActI - accActE - accSave).toLocaleString()}`;
+                // ★★★ 更新左側紫色數字，精準顯示攤提資金池總計 ★★★
+                document.getElementById('accSaveEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
+                
+                // 左側綠色數字，維持歷史總現金餘額邏輯
+                document.getElementById('accBalEl').innerText = `NT$ ${(accActI - accActE - accSaveTotal).toLocaleString()}`;
+                
                 document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
                 document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
 
