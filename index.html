@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 資金池精準加總版</title>
+    <title>請好好記帳 - 看板完美歸位版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -101,8 +101,8 @@
             <div class="card" style="padding: 15px;">
                 <div style="display: flex; width: 100%; align-items: center; text-align: center;">
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                        <div><div style="font-size:0.7rem; color:#888;">攤提結餘總計</div><div id="accSaveEl" style="font-weight:bold; font-size:1.25rem; color:#8e44ad;">0</div></div>
-                        <div><div style="font-size:0.7rem; color:#888;">累積餘額合計</div><div id="accBalEl" style="font-weight:bold; font-size:1.25rem; color:#27ae60;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">攤提結餘總計</div><div id="sinkingFundEl" style="font-weight:bold; font-size:1.25rem; color:#8e44ad;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">預計存款累積</div><div id="accSaveEl" style="font-weight:bold; font-size:1.25rem; color:#27ae60;">0</div></div>
                     </div>
                     <div style="width: 1px; background: #eee; height: 65px; margin: 0 10px;"></div>
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
@@ -210,7 +210,7 @@
         };
 
         window.saveOrder = async (monthStr, m, t, list) => {
-            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
+            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
             await Promise.all(ps);
         };
 
@@ -305,7 +305,7 @@
                 const curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
-                let accSaveTotal = 0; // 歷史總存款目標 (保留供內部計算綠字使用)
+                let accSaveTotal = 0;
                 for (let mKey in saveTargetMap) {
                     if (mKey <= currentMonth) accSaveTotal += (Number(saveTargetMap[mKey]) || 0);
                 }
@@ -327,8 +327,6 @@
                 const sortedMonths = [...allMonthsSet].sort();
 
                 let html = '';
-                
-                // ★★★ 宣告資金池總計變數 ★★★
                 let globalSinkingFundTotal = 0;
 
                 members.forEach(m => {
@@ -374,8 +372,6 @@
                                         accTotal += 0; 
                                     }
                                 });
-                                
-                                // ★★★ 將該項目的累計結餘，存入全域的資金池中 ★★★
                                 globalSinkingFundTotal += accTotal;
                             }
                             
@@ -406,11 +402,9 @@
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
                 });
                 
-                // ★★★ 更新左側紫色數字，精準顯示攤提資金池總計 ★★★
-                document.getElementById('accSaveEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
-                
-                // 左側綠色數字，維持歷史總現金餘額邏輯
-                document.getElementById('accBalEl').innerText = `NT$ ${(accActI - accActE - accSaveTotal).toLocaleString()}`;
+                // ★★★ 重新綁定看板資料：攤提資金池 (紫) 與 預計存款 (綠) ★★★
+                document.getElementById('sinkingFundEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
+                document.getElementById('accSaveEl').innerText = `NT$ ${accSaveTotal.toLocaleString()}`;
                 
                 document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
                 document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
