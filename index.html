@@ -106,7 +106,7 @@
                     </div>
                     <div style="width: 1px; background: #eee; height: 65px; margin: 0 10px;"></div>
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                        <div><div style="font-size:0.7rem; color:#888;">本月預算</div><div id="curEstBalEl" style="font-weight:bold; font-size:1.25rem;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">本月預算 (扣除存款)</div><div id="curEstBalEl" style="font-weight:bold; font-size:1.25rem;">0</div></div>
                         <div><div style="font-size:0.7rem; color:#888;">手頭餘額扣除 預計存款(當月)</div><div id="curActBalEl" style="font-weight:bold; font-size:1.15rem; color:#1a73e8;">0</div></div>
                     </div>
                 </div>
@@ -167,14 +167,14 @@
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
             if (!m || !t) return;
-            const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === t && String(b.month || '') <= currentMonth);
+            const allPastDocs = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === t && String(b.month || '') <= currentMonth);
             const latest = {};
             allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) latest[b.category] = b; });
             
             const defaultCats = defMap[m]?.[t] || [];
             defaultCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, isDeleted: false }; });
             
-            const finalCats = Object.values(latest).filter(d => !d.isDeleted).map(d => d.category);
+            const finalCats = Object.keys(latest).map(k => latest[k]).filter(d => !d.isDeleted).map(d => d.category);
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
 
@@ -199,12 +199,12 @@
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
             let targetDate = document.getElementById('fDate').value;
-            if (!targetDate.startsWith(monthStr)) targetDate = monthStr + "-01";
+            if (targetDate.indexOf(monthStr) !== 0) targetDate = monthStr + "-01";
             await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
         };
 
         window.saveOrder = async (monthStr, m, t, arrList) => {
-            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
+            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
             await Promise.all(ps);
         };
 
@@ -279,7 +279,7 @@
                 let estI = 0, estE = 0, actI = 0, actE = 0, pieBData = {}, pieAData = {};
                 const res = {}; members.forEach(m => res[m] = { 收入: {}, 支出: {} });
                 
-                allData.filter(d => (d.date || '').startsWith(currentMonth)).forEach(d => {
+                allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).forEach(d => {
                     const amt = Math.round(Number(d.amount)) || 0;
                     const mName = d.member || '未分類', tName = d.type || '支出', cName = d.category || '未分類';
                     if (!res[mName]) res[mName] = { 收入: {}, 支出: {} };
@@ -322,14 +322,18 @@
                         let sE = 0, sA = 0;
                         body += `<div style="font-size:0.7rem; color:#999; margin:15px 0 5px 0;">▼ ${type}</div>`;
                         
-                        const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === type && String(b.month || '') <= currentMonth);
+                        const allPastDocs = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === type && String(b.month || '') <= currentMonth);
                         const latest = {};
                         allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) latest[b.category] = b; });
                         
                         const defCats = defMap[m]?.[type] || [];
                         defCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, amount: 0, order: 999, isDeleted: false, isAcc: false }; });
 
-                        const activeCats = Object.values(latest).filter(d => !d.isDeleted).sort((a,b) => (a.order ?? 999) - (b.order ?? 999));
+                        const activeCats = Object.keys(latest).map(k => latest[k]).filter(d => !d.isDeleted).sort((a,b) => {
+                            const orderA = a.order !== undefined ? a.order : 999;
+                            const orderB = b.order !== undefined ? b.order : 999;
+                            return orderA - orderB;
+                        });
                         
                         let items = '';
                         activeCats.forEach(docObj => {
@@ -338,7 +342,7 @@
                             if (isAcc) {
                                 allData.filter(d => d.member === m && d.type === type && d.category === cat && String(d.date || '').slice(0,7) <= currentMonth).forEach(d => { accTotal -= Number(d.amount) || 0; });
                                 sortedMonths.forEach(sm => {
-                                    const pastForSm = Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
+                                    const pastForSm = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
                                     let lSnap = null;
                                     pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
                                     if (lSnap && !lSnap.isDeleted) accTotal += Number(lSnap.amount) || 0;
@@ -362,33 +366,37 @@
                 
                 document.getElementById('sinkingFundEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
                 document.getElementById('accSaveEl').innerText = `NT$ ${accSaveTotal.toLocaleString()}`;
-                document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
-                document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
-                document.getElementById('cardsContainer').innerHTML = html;
-                document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
-                // ★★★ 超強磁吸排序與顏色分佈 ★★★
+                document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE - curS).toLocaleString()}`;
+                document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
+
+                document.getElementById('cardsContainer').innerHTML = html;
+                document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
+                
+                // ★★★ 嚴格降級：全數使用 indexOf，拔除 includes 與 some ★★★
                 if (pieB && pieA) {
-                    const getCategoryColor = (catName) => {
-                        const name = (catName || '').toLowerCase();
-                        const check = (keys) => keys.some(k => name.includes(k));
-                        if (check(['車','油','交通','保養','停車','罰單','過路'])) return '#2ecc71'; 
-                        if (check(['房','水','電','瓦斯','網','fb','google','軟體','導演','通訊','手機'])) return '#3498db'; 
-                        if (check(['學','書','課','娛樂','遊戲','影音','玩具','訂閱'])) return '#9b59b6'; 
-                        if (check(['吃','餐','食','買','衣','錶','寵物','雜支','生活','樂'])) return '#f39c12'; 
-                        if (check(['卡','貸','保險','醫','藥','稅','息'])) return '#e74c3c'; 
+                    var getCategoryColor = function(catName) {
+                        var name = String(catName || '').toLowerCase();
+                        
+                        if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('保養') !== -1 || name.indexOf('停車') !== -1 || name.indexOf('罰單') !== -1 || name.indexOf('過路') !== -1) return '#2ecc71'; 
+                        if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1 || name.indexOf('fb') !== -1 || name.indexOf('google') !== -1 || name.indexOf('軟體') !== -1 || name.indexOf('導演') !== -1 || name.indexOf('通訊') !== -1 || name.indexOf('手機') !== -1) return '#3498db'; 
+                        if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1 || name.indexOf('娛樂') !== -1 || name.indexOf('遊戲') !== -1 || name.indexOf('影音') !== -1 || name.indexOf('玩具') !== -1 || name.indexOf('訂閱') !== -1) return '#9b59b6'; 
+                        if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('買') !== -1 || name.indexOf('衣') !== -1 || name.indexOf('錶') !== -1 || name.indexOf('寵物') !== -1 || name.indexOf('雜支') !== -1 || name.indexOf('生活') !== -1 || name.indexOf('樂') !== -1) return '#f39c12'; 
+                        if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保險') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1 || name.indexOf('稅') !== -1 || name.indexOf('息') !== -1) return '#e74c3c'; 
+                        
                         return '#bdc3c7'; 
                     };
 
-                    const sortAndApplyChart = (pieObj, dataObj) => {
-                        const labels = Object.keys(dataObj).sort((a,b) => {
-                            const cA = getCategoryColor(a), cB = getCategoryColor(b);
+                    var sortAndApplyChart = function(pieObj, dataObj) {
+                        var labels = Object.keys(dataObj).sort(function(a,b) {
+                            var cA = getCategoryColor(a);
+                            var cB = getCategoryColor(b);
                             if (cA !== cB) return cA.localeCompare(cB);
                             return dataObj[b] - dataObj[a]; 
                         });
                         pieObj.data.labels = labels;
-                        pieObj.data.datasets[0].data = labels.map(k => dataObj[k]);
-                        pieObj.data.datasets[0].backgroundColor = labels.map(k => getCategoryColor(k));
+                        pieObj.data.datasets[0].data = labels.map(function(k) { return dataObj[k]; });
+                        pieObj.data.datasets[0].backgroundColor = labels.map(function(k) { return getCategoryColor(k); });
                         pieObj.update();
                     };
 
