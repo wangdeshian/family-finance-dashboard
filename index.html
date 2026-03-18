@@ -106,7 +106,7 @@
                     </div>
                     <div style="width: 1px; background: #eee; height: 65px; margin: 0 10px;"></div>
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-                        <div><div style="font-size:0.7rem; color:#888;">本月預算</div><div id="curEstBalEl" style="font-weight:bold; font-size:1.25rem;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">本月預算 (扣除存款)</div><div id="curEstBalEl" style="font-weight:bold; font-size:1.25rem;">0</div></div>
                         <div><div style="font-size:0.7rem; color:#888;">手頭餘額扣除 預計存款(當月)</div><div id="curActBalEl" style="font-weight:bold; font-size:1.15rem; color:#1a73e8;">0</div></div>
                     </div>
                 </div>
@@ -204,7 +204,7 @@
         };
 
         window.saveOrder = async (monthStr, m, t, arrList) => {
-            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
+            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
             await Promise.all(ps);
         };
 
@@ -362,12 +362,14 @@
                 
                 document.getElementById('sinkingFundEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
                 document.getElementById('accSaveEl').innerText = `NT$ ${accSaveTotal.toLocaleString()}`;
-                document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
+                
+                // ★★★ 預算精準扣除：本月預估餘額扣除「本月存款目標」 ★★★
+                document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE - curS).toLocaleString()}`;
+                
                 document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
-                // ★★★ 超強磁吸排序與顏色分佈 ★★★
                 if (pieB && pieA) {
                     const getCategoryColor = (catName) => {
                         const name = (catName || '').toLowerCase();
