@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 斬斷殘留最終版</title>
+    <title>請好好記帳 - 徹底淨化版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -127,7 +127,10 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        let allData = [], allBudgets = {}, currentMonth = new Date().toISOString().slice(0,7);
+        
+        let allData = [], allBudgets = {};
+        const todayMonthStr = new Date().toISOString().slice(0,7);
+        let currentMonth = localStorage.getItem('ff_current_month') || todayMonthStr;
         let isEditing = false, pieB, pieA, saveTargetMap = {};
 
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
@@ -156,7 +159,6 @@
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
 
-        // ★★★ 破除記憶殘留：強制綁定 monthStr 確保不寫錯月份 ★★★
         window.deleteCategory = async (monthStr, m, t, c) => {
             if (!confirm(`確定移除「${c}」？`)) return;
             await setDoc(doc(db, "budgets", `${monthStr}_${m}_${c}`), { month: monthStr, member: m, type: t, category: c, amount: 0, isDeleted: true }, { merge: true });
@@ -178,12 +180,8 @@
             isEditing = false;
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
-            
             let targetDate = document.getElementById('fDate').value;
-            // 如果輸入框是在舊月份觸發，強迫寫入那個月的 1 號
-            if (!targetDate.startsWith(monthStr)) { 
-                targetDate = monthStr + "-01"; 
-            }
+            if (!targetDate.startsWith(monthStr)) { targetDate = monthStr + "-01"; }
             await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
         };
 
@@ -205,6 +203,7 @@
         window.selectMonth = (val) => {
             isEditing = false;
             currentMonth = val;
+            localStorage.setItem('ff_current_month', currentMonth);
             window.syncDateInput();
             updateMonthSelector();
             render();
@@ -215,6 +214,7 @@
             let [y, m] = currentMonth.split('-').map(Number); 
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
             currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
+            localStorage.setItem('ff_current_month', currentMonth);
             window.syncDateInput(); 
             updateMonthSelector(); 
             render(); 
@@ -267,6 +267,13 @@
                 const curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
+                // ★★★ 計算歷史所有出現過的月份 (用於攤提累計演算法) ★★★
+                const allMonthsSet = new Set();
+                allData.forEach(d => { const mStr = d.date.slice(0,7); if(mStr <= currentMonth) allMonthsSet.add(mStr); });
+                Object.values(allBudgets).forEach(b => { if(String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
+                allMonthsSet.add(currentMonth);
+                const sortedMonths = [...allMonthsSet].sort();
+
                 let html = '';
                 members.forEach(m => {
                     let body = '';
@@ -289,17 +296,29 @@
                             const eS = Number(docObj.amount) || 0; 
                             const isAcc = docObj.isAcc === true;
 
+                            // ★★★ 攤提累計史詩級演算法升級 ★★★
                             let accTotal = 0;
                             if (isAcc) {
-                                Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= currentMonth).forEach(b => { accTotal += Number(b.amount) || 0; });
+                                // 扣除歷史所有實際支出
                                 allData.filter(d => d.member === m && d.type === type && d.category === cat && String(d.date.slice(0,7)) <= currentMonth).forEach(d => { accTotal -= Number(d.amount) || 0; });
+                                
+                                // 精準疊加歷史每個月的「有效預算」
+                                sortedMonths.forEach(sm => {
+                                    const pastForSm = Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
+                                    let lSnap = null;
+                                    pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
+                                    if (lSnap && !lSnap.isDeleted) {
+                                        accTotal += Number(lSnap.amount) || 0;
+                                    } else if (!lSnap && (defMap[m]?.[type] || []).includes(cat)) {
+                                        accTotal += 0; // 預設項目若無預算紀錄則視為 0
+                                    }
+                                });
                             }
                             
                             sE += eS; sA += aS;
                             if(type === '收入') estI += eS; else { estE += eS; pieBData[cat] = (pieBData[cat] || 0) + eS; }
                             let cl = (type === '支出' && aS > eS) || (type === '收入' && aS < eS) ? 'budget-warning' : 'budget-safe';
                             
-                            // ★★★ 破除記憶殘留：給每個 input 加上專屬 currentMonth 的獨立 ID，並把 currentMonth 鎖進函數裡 ★★★
                             items += `<div class="item-row" data-cat="${cat}">
                                 <span class="handle">〓</span>
                                 <div class="name-col">
@@ -318,7 +337,6 @@
                         });
                         body += `<div id="list-${m.replace(/\s+/g, '')}-${type}">${items}</div>`;
                         body += `<div class="subtotal-row"><span style="padding-left:36px">合計:</span><div class="val-container" style="padding-right:20px;"><div class="input-box" style="border:none;background:transparent">${sE.toLocaleString()}</div><div class="input-box" style="border:none;background:transparent;color:#1a73e8">${sA.toLocaleString()}</div></div></div>`;
-                        // ★★★ 新增按鈕也鎖死 currentMonth ★★★
                         body += `<div class="inline-add-area"><div class="inline-add-box"><input type="text" id="cAddCat-${m}-${type}" class="inline-add-name" placeholder="新${type}名稱..."><input type="number" id="cAddAmt-${m}-${type}" class="inline-add-amt" placeholder="預算"><button type="button" onclick="cardAddProject('${currentMonth}','${m}','${type}')" class="inline-add-btn">+</button></div></div>`;
                     });
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
