@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 看板完美歸位版</title>
+    <title>請好好記帳 - 最強相容不當機版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -168,18 +168,19 @@
             }
         };
 
+        // ★★★ 史詩級相容性降級：不再使用 Object.values() ★★★
         window.updateCategoryDropdown = () => {
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
             if (!m || !t) return;
-            const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === t && String(b.month || '') <= currentMonth);
+            const allPastDocs = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === t && String(b.month || '') <= currentMonth);
             const latest = {};
             allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
             
             const defaultCats = (defMap[m] && defMap[m][t]) ? defMap[m][t] : [];
             defaultCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, isDeleted: false }; });
             
-            const finalCats = Object.values(latest).filter(d => !d.isDeleted).map(d => d.category);
+            const finalCats = Object.keys(latest).map(k => latest[k]).filter(d => !d.isDeleted).map(d => d.category);
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
 
@@ -205,12 +206,13 @@
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
             let targetDate = document.getElementById('fDate').value;
-            if (!targetDate.startsWith(monthStr)) { targetDate = monthStr + "-01"; }
+            // 降級 startsWith
+            if (targetDate.indexOf(monthStr) !== 0) { targetDate = monthStr + "-01"; }
             await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
         };
 
-        window.saveOrder = async (monthStr, m, t, list) => {
-            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
+        window.saveOrder = async (monthStr, m, t, arrList) => {
+            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
             await Promise.all(ps);
         };
 
@@ -220,7 +222,7 @@
         
         window.syncDateInput = () => {
             const todayStr = new Date().toISOString().slice(0,10);
-            if (todayStr.startsWith(currentMonth)) { document.getElementById('fDate').value = todayStr; } 
+            if (todayStr.indexOf(currentMonth) === 0) { document.getElementById('fDate').value = todayStr; } 
             else { document.getElementById('fDate').value = currentMonth + "-01"; }
         };
 
@@ -263,17 +265,27 @@
         };
 
         const updateMonthSelector = () => {
-            const dataMonths = allData.map(d => (d.date || '').slice(0,7)).filter(Boolean);
-            const budgetMonths = Object.values(allBudgets).map(b => b.month).filter(Boolean);
+            const monthsArr = [currentMonth];
             const today = new Date();
             const realThisMonth = today.toISOString().slice(0,7);
+            if (monthsArr.indexOf(realThisMonth) === -1) monthsArr.push(realThisMonth);
+            
             let [y, m] = realThisMonth.split('-').map(Number); m += 1; if(m>12){y++;m=1;}
             const realNextMonth = `${y}-${String(m).padStart(2,'0')}`;
-            const monthsSet = new Set([...dataMonths, ...budgetMonths, currentMonth, realThisMonth, realNextMonth]);
-            const months = [...monthsSet];
-            months.sort().reverse(); 
-            document.getElementById('monthSelect').innerHTML = months.map(m => `<option value="${m}" ${m===currentMonth?'selected':''}>${m}</option>`).join('');
-            document.getElementById('fMember').innerHTML = members.map(m => `<option value="${m}">${m === '共同支出' ? '🏠 共同' : m}</option>`).join('');
+            if (monthsArr.indexOf(realNextMonth) === -1) monthsArr.push(realNextMonth);
+            
+            // ★★★ 拔除 Set，改用安全的 indexOf ★★★
+            allData.forEach(d => { 
+                const mStr = (d.date || '').slice(0,7); 
+                if (mStr && monthsArr.indexOf(mStr) === -1) monthsArr.push(mStr); 
+            });
+            Object.keys(allBudgets).map(k => allBudgets[k]).forEach(b => { 
+                if (b.month && monthsArr.indexOf(String(b.month)) === -1) monthsArr.push(String(b.month)); 
+            });
+            
+            const months = monthsArr.sort().reverse(); 
+            document.getElementById('monthSelect').innerHTML = months.map(mStr => `<option value="${mStr}" ${mStr===currentMonth?'selected':''}>${mStr}</option>`).join('');
+            document.getElementById('fMember').innerHTML = members.map(mStr => `<option value="${mStr}">${mStr === '共同支出' ? '🏠 共同' : mStr}</option>`).join('');
             updateCategoryDropdown();
         };
 
@@ -283,7 +295,7 @@
                 let estI = 0, estE = 0, actI = 0, actE = 0, pieBData = {}, pieAData = {};
                 const res = {}; members.forEach(m => res[m] = { 收入: {}, 支出: {} });
                 
-                allData.filter(d => (d.date || '').startsWith(currentMonth)).forEach(d => {
+                allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).forEach(d => {
                     const amt = Math.round(Number(d.amount)) || 0;
                     const mName = d.member || '未分類';
                     const tName = d.type || '支出';
@@ -320,11 +332,15 @@
                     }
                 });
                 
-                const allMonthsSet = new Set();
-                allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth) allMonthsSet.add(mStr); });
-                Object.values(allBudgets).forEach(b => { if(b.month && String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
-                allMonthsSet.add(currentMonth);
-                const sortedMonths = [...allMonthsSet].sort();
+                const allMonthsArr = [currentMonth];
+                allData.forEach(d => { 
+                    const mStr = (d.date || '').slice(0,7); 
+                    if(mStr && mStr <= currentMonth && allMonthsArr.indexOf(mStr) === -1) allMonthsArr.push(mStr); 
+                });
+                Object.keys(allBudgets).map(k => allBudgets[k]).forEach(b => { 
+                    if(b.month && String(b.month) <= currentMonth && allMonthsArr.indexOf(String(b.month)) === -1) allMonthsArr.push(String(b.month)); 
+                });
+                const sortedMonths = allMonthsArr.sort();
 
                 let html = '';
                 let globalSinkingFundTotal = 0;
@@ -336,14 +352,14 @@
                         let sE = 0, sA = 0;
                         body += `<div style="font-size:0.7rem; color:#999; margin:15px 0 5px 0;">▼ ${type}</div>`;
                         
-                        const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === type && String(b.month || '') <= currentMonth);
+                        const allPastDocs = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === type && String(b.month || '') <= currentMonth);
                         const latest = {};
                         allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
                         
                         const defCats = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                         defCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, amount: 0, order: 999, isDeleted: false, isAcc: false }; });
 
-                        const activeCats = Object.values(latest).filter(d => !d.isDeleted).sort((a,b) => {
+                        const activeCats = Object.keys(latest).map(k => latest[k]).filter(d => !d.isDeleted).sort((a,b) => {
                             const orderA = a.order !== undefined ? a.order : 999;
                             const orderB = b.order !== undefined ? b.order : 999;
                             return orderA - orderB;
@@ -360,7 +376,7 @@
                             if (isAcc) {
                                 allData.filter(d => d.member === m && d.type === type && d.category === cat && String(d.date || '').slice(0,7) <= currentMonth).forEach(d => { accTotal -= Number(d.amount) || 0; });
                                 sortedMonths.forEach(sm => {
-                                    const pastForSm = Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
+                                    const pastForSm = Object.keys(allBudgets).map(k => allBudgets[k]).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
                                     let lSnap = null;
                                     pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
                                     
@@ -368,7 +384,8 @@
                                     
                                     if (lSnap && !lSnap.isDeleted) {
                                         accTotal += Number(lSnap.amount) || 0;
-                                    } else if (!lSnap && defMapType.includes(cat)) {
+                                    // ★★★ 拔除 includes 改用 indexOf ★★★
+                                    } else if (!lSnap && defMapType.indexOf(cat) !== -1) {
                                         accTotal += 0; 
                                     }
                                 });
@@ -402,7 +419,6 @@
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
                 });
                 
-                // ★★★ 重新綁定看板資料：攤提資金池 (紫) 與 預計存款 (綠) ★★★
                 document.getElementById('sinkingFundEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
                 document.getElementById('accSaveEl').innerText = `NT$ ${accSaveTotal.toLocaleString()}`;
                 
@@ -410,16 +426,30 @@
                 document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
 
                 document.getElementById('cardsContainer').innerHTML = html;
-                document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
+                document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
                 if (pieB && pieA) {
-                    pieB.data.labels = Object.keys(pieBData); pieB.data.datasets[0].data = Object.values(pieBData); pieB.update();
-                    pieA.data.labels = Object.keys(pieAData); pieA.data.datasets[0].data = Object.values(pieAData); pieA.update();
+                    pieB.data.labels = Object.keys(pieBData); pieB.data.datasets[0].data = Object.keys(pieBData).map(k => pieBData[k]); pieB.update();
+                    pieA.data.labels = Object.keys(pieAData); pieA.data.datasets[0].data = Object.keys(pieAData).map(k => pieAData[k]); pieA.update();
                 }
 
-                members.forEach(m => ['收入','支出'].forEach(t => { const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${t}`); if(el) Sortable.create(el, { handle:'.handle', animation:150, onEnd: async () => { isEditing=true; await saveOrder(currentMonth, m, t, Array.from(el.children).map(r=>r.getAttribute('data-cat'))); isEditing=false; } }); }));
+                // ★★★ 拔除 Array.from 避免老舊瀏覽器當機 ★★★
+                members.forEach(m => ['收入','支出'].forEach(t => { 
+                    const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${t}`); 
+                    if(el) {
+                        Sortable.create(el, { handle:'.handle', animation:150, onEnd: async () => { 
+                            isEditing = true; 
+                            const arr = [];
+                            for(let i=0; i<el.children.length; i++) { arr.push(el.children[i].getAttribute('data-cat')); }
+                            await saveOrder(currentMonth, m, t, arr); 
+                            isEditing = false; 
+                        }}); 
+                    }
+                }));
             } catch (e) {
                 console.error("渲染出錯了！", e);
+                // ★★★ 終極防死當機制：如果再當機，直接把原因印在畫面上！ ★★★
+                document.getElementById('cardsContainer').innerHTML = `<div class="card" style="border:2px solid red; color:red; text-align:center;"><h3>系統畫圖失敗</h3><p>瀏覽器不支援：${e.message}</p><p>請截圖此畫面給工程師！</p></div>`;
             }
         };
 
