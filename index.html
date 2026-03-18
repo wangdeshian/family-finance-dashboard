@@ -256,19 +256,18 @@
         };
 
         const updateMonthSelector = () => {
-            const monthsArr = [currentMonth];
+            const monthsSet = new Set([currentMonth]);
             const today = new Date();
             const realThisMonth = today.toISOString().slice(0,7);
-            if (monthsArr.indexOf(realThisMonth) === -1) monthsArr.push(realThisMonth);
+            monthsSet.add(realThisMonth);
             
             let [y, m] = realThisMonth.split('-').map(Number); m += 1; if(m>12){y++;m=1;}
-            const realNextMonth = `${y}-${String(m).padStart(2,'0')}`;
-            if (monthsArr.indexOf(realNextMonth) === -1) monthsArr.push(realNextMonth);
+            monthsSet.add(`${y}-${String(m).padStart(2,'0')}`);
             
-            allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if (mStr && monthsArr.indexOf(mStr) === -1) monthsArr.push(mStr); });
-            Object.keys(allBudgets).map(k => allBudgets[k]).forEach(b => { if (b.month && monthsArr.indexOf(String(b.month)) === -1) monthsArr.push(String(b.month)); });
+            allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if (mStr) monthsSet.add(mStr); });
+            Object.values(allBudgets).forEach(b => { if (b.month) monthsSet.add(String(b.month)); });
             
-            const months = monthsArr.sort().reverse(); 
+            const months = [...monthsSet].sort().reverse(); 
             document.getElementById('monthSelect').innerHTML = months.map(mStr => `<option value="${mStr}" ${mStr===currentMonth?'selected':''}>${mStr}</option>`).join('');
             document.getElementById('fMember').innerHTML = members.map(mStr => `<option value="${mStr}">${mStr === '共同支出' ? '🏠 共同' : mStr}</option>`).join('');
             updateCategoryDropdown();
@@ -308,10 +307,10 @@
                     }
                 });
                 
-                const allMonthsArr = [currentMonth];
-                allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth && allMonthsArr.indexOf(mStr) === -1) allMonthsArr.push(mStr); });
-                Object.keys(allBudgets).map(k => allBudgets[k]).forEach(b => { if(b.month && String(b.month) <= currentMonth && allMonthsArr.indexOf(String(b.month)) === -1) allMonthsArr.push(String(b.month)); });
-                const sortedMonths = allMonthsArr.sort();
+                const allMonthsSet = new Set([currentMonth]);
+                allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth) allMonthsSet.add(mStr); });
+                Object.values(allBudgets).forEach(b => { if(b.month && String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
+                const sortedMonths = [...allMonthsSet].sort();
 
                 let html = '';
                 let globalSinkingFundTotal = 0;
@@ -373,7 +372,7 @@
                 document.getElementById('sinkingFundEl').innerText = `NT$ ${globalSinkingFundTotal.toLocaleString()}`;
                 document.getElementById('accSaveEl').innerText = `NT$ ${accSaveTotal.toLocaleString()}`;
                 
-                // ★★★ 預算扣除存款修正：數學公式更新 (- curS) ★★★
+                // ★★★ 單點修正：本月預算扣除本月存款 (- curS) ★★★
                 document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE - curS).toLocaleString()}`;
                 
                 document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
@@ -381,30 +380,27 @@
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
-                // ★★★ 這裡絕對保持 indexOf 安全寫法 ★★★
                 if (pieB && pieA) {
-                    var getCategoryColor = function(catName) {
-                        var name = String(catName || '').toLowerCase();
-                        
-                        if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('保養') !== -1 || name.indexOf('停車') !== -1 || name.indexOf('罰單') !== -1 || name.indexOf('過路') !== -1) return '#2ecc71'; 
-                        if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1 || name.indexOf('fb') !== -1 || name.indexOf('google') !== -1 || name.indexOf('軟體') !== -1 || name.indexOf('導演') !== -1 || name.indexOf('通訊') !== -1 || name.indexOf('手機') !== -1) return '#3498db'; 
-                        if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1 || name.indexOf('娛樂') !== -1 || name.indexOf('遊戲') !== -1 || name.indexOf('影音') !== -1 || name.indexOf('玩具') !== -1 || name.indexOf('訂閱') !== -1) return '#9b59b6'; 
-                        if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('買') !== -1 || name.indexOf('衣') !== -1 || name.indexOf('錶') !== -1 || name.indexOf('寵物') !== -1 || name.indexOf('雜支') !== -1 || name.indexOf('生活') !== -1 || name.indexOf('樂') !== -1) return '#f39c12'; 
-                        if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保險') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1 || name.indexOf('稅') !== -1 || name.indexOf('息') !== -1) return '#e74c3c'; 
-                        
+                    const getCategoryColor = (catName) => {
+                        const name = (catName || '').toLowerCase();
+                        const check = (keys) => keys.some(k => name.includes(k));
+                        if (check(['車','油','交通','保養','停車','罰單','過路'])) return '#2ecc71'; 
+                        if (check(['房','水','電','瓦斯','網','fb','google','軟體','導演','通訊','手機'])) return '#3498db'; 
+                        if (check(['學','書','課','娛樂','遊戲','影音','玩具','訂閱'])) return '#9b59b6'; 
+                        if (check(['吃','餐','食','買','衣','錶','寵物','雜支','生活','樂'])) return '#f39c12'; 
+                        if (check(['卡','貸','保險','醫','藥','稅','息'])) return '#e74c3c'; 
                         return '#bdc3c7'; 
                     };
 
-                    var sortAndApplyChart = function(pieObj, dataObj) {
-                        var labels = Object.keys(dataObj).sort(function(a,b) {
-                            var cA = getCategoryColor(a);
-                            var cB = getCategoryColor(b);
+                    const sortAndApplyChart = (pieObj, dataObj) => {
+                        const labels = Object.keys(dataObj).sort((a,b) => {
+                            const cA = getCategoryColor(a), cB = getCategoryColor(b);
                             if (cA !== cB) return cA.localeCompare(cB);
                             return dataObj[b] - dataObj[a]; 
                         });
                         pieObj.data.labels = labels;
-                        pieObj.data.datasets[0].data = labels.map(function(k) { return dataObj[k]; });
-                        pieObj.data.datasets[0].backgroundColor = labels.map(function(k) { return getCategoryColor(k); });
+                        pieObj.data.datasets[0].data = labels.map(k => dataObj[k]);
+                        pieObj.data.datasets[0].backgroundColor = labels.map(k => getCategoryColor(k));
                         pieObj.update();
                     };
 
