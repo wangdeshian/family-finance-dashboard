@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 最強相容不當機版</title>
+    <title>請好好記帳 - 智能分色完美版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -163,12 +163,11 @@
             const ctxA = elA ? elA.getContext('2d') : null;
             
             if(ctxB && ctxA) {
-                pieB = new Chart(ctxB, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#ff9f40','#1abc9c'] }] }, options: opt });
-                pieA = new Chart(ctxA, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#ff9f40','#1abc9c'] }] }, options: opt });
+                pieB = new Chart(ctxB, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: opt });
+                pieA = new Chart(ctxA, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: [] }] }, options: opt });
             }
         };
 
-        // ★★★ 史詩級相容性降級：不再使用 Object.values() ★★★
         window.updateCategoryDropdown = () => {
             const m = document.getElementById('fMember').value;
             const t = document.getElementById('fType').value;
@@ -206,7 +205,6 @@
             const val = Math.round(Number(v)) || 0;
             if (val === cur) return;
             let targetDate = document.getElementById('fDate').value;
-            // 降級 startsWith
             if (targetDate.indexOf(monthStr) !== 0) { targetDate = monthStr + "-01"; }
             await addDoc(collection(db, "expenses"), { date: targetDate, type: t, member: m, category: c, amount: val - cur, timestamp: new Date() });
         };
@@ -274,7 +272,6 @@
             const realNextMonth = `${y}-${String(m).padStart(2,'0')}`;
             if (monthsArr.indexOf(realNextMonth) === -1) monthsArr.push(realNextMonth);
             
-            // ★★★ 拔除 Set，改用安全的 indexOf ★★★
             allData.forEach(d => { 
                 const mStr = (d.date || '').slice(0,7); 
                 if (mStr && monthsArr.indexOf(mStr) === -1) monthsArr.push(mStr); 
@@ -384,7 +381,6 @@
                                     
                                     if (lSnap && !lSnap.isDeleted) {
                                         accTotal += Number(lSnap.amount) || 0;
-                                    // ★★★ 拔除 includes 改用 indexOf ★★★
                                     } else if (!lSnap && defMapType.indexOf(cat) !== -1) {
                                         accTotal += 0; 
                                     }
@@ -428,12 +424,37 @@
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
+                // ★★★ 圓餅圖自動分色字典 ★★★
                 if (pieB && pieA) {
-                    pieB.data.labels = Object.keys(pieBData); pieB.data.datasets[0].data = Object.keys(pieBData).map(k => pieBData[k]); pieB.update();
-                    pieA.data.labels = Object.keys(pieAData); pieA.data.datasets[0].data = Object.keys(pieAData).map(k => pieAData[k]); pieA.update();
+                    var getCategoryColor = function(catName) {
+                        var name = catName || '';
+                        // 綠色系 (交通車輛)
+                        if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('停車') !== -1) return '#2ecc71'; 
+                        // 藍色系 (居住水電)
+                        if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1) return '#3498db'; 
+                        // 紫色系 (教育學習)
+                        if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1) return '#9b59b6'; 
+                        // 橘黃色系 (飲食生活)
+                        if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('寵物') !== -1) return '#f39c12'; 
+                        // 紅色系 (金融醫療)
+                        if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1) return '#e74c3c'; 
+                        
+                        return '#bdc3c7'; // 其他預設為低調灰色
+                    };
+
+                    var labelsB = Object.keys(pieBData);
+                    pieB.data.labels = labelsB;
+                    pieB.data.datasets[0].data = labelsB.map(function(k) { return pieBData[k]; });
+                    pieB.data.datasets[0].backgroundColor = labelsB.map(function(cat) { return getCategoryColor(cat); });
+                    pieB.update();
+
+                    var labelsA = Object.keys(pieAData);
+                    pieA.data.labels = labelsA;
+                    pieA.data.datasets[0].data = labelsA.map(function(k) { return pieAData[k]; });
+                    pieA.data.datasets[0].backgroundColor = labelsA.map(function(cat) { return getCategoryColor(cat); });
+                    pieA.update();
                 }
 
-                // ★★★ 拔除 Array.from 避免老舊瀏覽器當機 ★★★
                 members.forEach(m => ['收入','支出'].forEach(t => { 
                     const el = document.getElementById(`list-${m.replace(/\s+/g, '')}-${t}`); 
                     if(el) {
@@ -448,7 +469,6 @@
                 }));
             } catch (e) {
                 console.error("渲染出錯了！", e);
-                // ★★★ 終極防死當機制：如果再當機，直接把原因印在畫面上！ ★★★
                 document.getElementById('cardsContainer').innerHTML = `<div class="card" style="border:2px solid red; color:red; text-align:center;"><h3>系統畫圖失敗</h3><p>瀏覽器不支援：${e.message}</p><p>請截圖此畫面給工程師！</p></div>`;
             }
         };
