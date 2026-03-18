@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 財務儀表板升級版</title>
+    <title>請好好記帳 - 防禦解凍最終版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -104,9 +104,7 @@
                         <div><div style="font-size:0.7rem; color:#888;">預計存款累積</div><div id="accSaveEl" style="font-weight:bold; font-size:1.25rem; color:#8e44ad;">0</div></div>
                         <div><div style="font-size:0.7rem; color:#888;">累積餘額合計</div><div id="accBalEl" style="font-weight:bold; font-size:1.25rem; color:#27ae60;">0</div></div>
                     </div>
-                    
                     <div style="width: 1px; background: #eee; height: 65px; margin: 0 10px;"></div>
-                    
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
                         <div><div style="font-size:0.7rem; color:#888;">本月預算</div><div id="curEstBalEl" style="font-weight:bold; font-size:1.25rem;">0</div></div>
                         <div><div style="font-size:0.7rem; color:#888;">手頭餘額扣除 預計存款(當月)</div><div id="curActBalEl" style="font-weight:bold; font-size:1.15rem; color:#1a73e8;">0</div></div>
@@ -140,9 +138,19 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
+        // ★★★ 破除瀏覽器安全阻擋：安全讀取記憶 ★★★
+        const getSafeMonth = () => {
+            try { return localStorage.getItem('ff_current_month'); } 
+            catch(e) { return null; } // 瀏覽器若阻擋，直接微笑放棄
+        };
+        const setSafeMonth = (val) => {
+            try { localStorage.setItem('ff_current_month', val); } 
+            catch(e) {} // 瀏覽器若阻擋，默默忽略，保證系統不當機
+        };
+
         let allData = [], allBudgets = {};
         const todayMonthStr = new Date().toISOString().slice(0,7);
-        let currentMonth = localStorage.getItem('ff_current_month') || todayMonthStr;
+        let currentMonth = getSafeMonth() || todayMonthStr;
         let isEditing = false, pieB, pieA, saveTargetMap = {};
 
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
@@ -215,7 +223,7 @@
         window.selectMonth = (val) => {
             isEditing = false;
             currentMonth = val;
-            localStorage.setItem('ff_current_month', currentMonth);
+            setSafeMonth(currentMonth); // 使用防護版存檔
             window.syncDateInput();
             updateMonthSelector();
             render();
@@ -226,7 +234,7 @@
             let [y, m] = currentMonth.split('-').map(Number); 
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
             currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
-            localStorage.setItem('ff_current_month', currentMonth);
+            setSafeMonth(currentMonth); // 使用防護版存檔
             window.syncDateInput(); 
             updateMonthSelector(); 
             render(); 
@@ -271,7 +279,6 @@
                 let estI = 0, estE = 0, actI = 0, actE = 0, pieBData = {}, pieAData = {};
                 const res = {}; members.forEach(m => res[m] = { 收入: {}, 支出: {} });
                 
-                // 當月數據統計
                 allData.filter(d => (d.date || '').startsWith(currentMonth)).forEach(d => {
                     const amt = Math.round(Number(d.amount)) || 0;
                     const mName = d.member || '未分類';
@@ -294,19 +301,15 @@
                 const curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
-                // ★★★ 財務看板：累計與時序隔離算法 ★★★
-                
-                // 1. 預計存款的累積 (加總所有歷史 <= currentMonth 的目標)
                 let accSave = 0;
                 for (let mKey in saveTargetMap) {
                     if (mKey <= currentMonth) accSave += (Number(saveTargetMap[mKey]) || 0);
                 }
 
-                // 2. 累積餘額合計 (歷史總收入 - 歷史總支出 - 歷史總預計存款)
                 let accActI = 0, accActE = 0;
                 allData.forEach(d => {
                     const mStr = (d.date || '').slice(0, 7);
-                    if (mStr && mStr <= currentMonth) { // 時序防護：絕不跨越未來
+                    if (mStr && mStr <= currentMonth) { 
                         const amt = Math.round(Number(d.amount)) || 0;
                         if (d.type === '收入') accActI += amt;
                         else accActE += amt;
@@ -344,8 +347,17 @@
 
                             let accTotal = 0;
                             if (isAcc) {
-                                Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month || '') <= currentMonth).forEach(b => { accTotal += Number(b.amount) || 0; });
                                 allData.filter(d => d.member === m && d.type === type && d.category === cat && String(d.date || '').slice(0,7) <= currentMonth).forEach(d => { accTotal -= Number(d.amount) || 0; });
+                                sortedMonths.forEach(sm => {
+                                    const pastForSm = Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
+                                    let lSnap = null;
+                                    pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
+                                    if (lSnap && !lSnap.isDeleted) {
+                                        accTotal += Number(lSnap.amount) || 0;
+                                    } else if (!lSnap && (defMap[m]?.[type] || []).includes(cat)) {
+                                        accTotal += 0; 
+                                    }
+                                });
                             }
                             
                             sE += eS; sA += aS;
@@ -375,7 +387,6 @@
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
                 });
                 
-                // ★★★ 更新拆分後的財務看板數字 ★★★
                 document.getElementById('accSaveEl').innerText = `NT$ ${accSave.toLocaleString()}`;
                 document.getElementById('accBalEl').innerText = `NT$ ${(accActI - accActE - accSave).toLocaleString()}`;
                 document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
