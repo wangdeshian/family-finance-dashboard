@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 終極防彈解凍版</title>
+    <title>請好好記帳 - 財務儀表板升級版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -29,7 +29,6 @@
         .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; height: 55px; margin-top: 15px; font-size: 1.2rem; }
 
         .middle-section { display: flex; flex-direction: column; gap: 15px; }
-        .item-list { display: flex; flex-direction: column; }
         .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 6px; }
         .handle { color: #ddd; cursor: grab; padding: 0 6px; font-size: 1.2rem; flex-shrink: 0; }
         
@@ -99,10 +98,22 @@
         <div class="middle-section" id="cardsContainer"></div>
 
         <div class="summary-grid">
-            <div class="card" style="justify-content: center; text-align: center; padding: 20px;">
-                <div><div style="font-size:0.75rem; color:#888;">本月預算剩餘</div><div id="estBal" style="font-weight:bold; font-size:1.4rem;">0</div></div>
-                <div style="margin-top:12px;"><div style="font-size:0.75rem; color:#888;">手頭餘額 (扣存)</div><div id="actBal" style="font-weight:bold; font-size:1.4rem; color:#1a73e8;">0</div></div>
+            <div class="card" style="padding: 15px;">
+                <div style="display: flex; width: 100%; align-items: center; text-align: center;">
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                        <div><div style="font-size:0.7rem; color:#888;">預計存款累積</div><div id="accSaveEl" style="font-weight:bold; font-size:1.25rem; color:#8e44ad;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">累積餘額合計</div><div id="accBalEl" style="font-weight:bold; font-size:1.25rem; color:#27ae60;">0</div></div>
+                    </div>
+                    
+                    <div style="width: 1px; background: #eee; height: 65px; margin: 0 10px;"></div>
+                    
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                        <div><div style="font-size:0.7rem; color:#888;">本月預算</div><div id="curEstBalEl" style="font-weight:bold; font-size:1.25rem;">0</div></div>
+                        <div><div style="font-size:0.7rem; color:#888;">手頭餘額扣除 預計存款(當月)</div><div id="curActBalEl" style="font-weight:bold; font-size:1.15rem; color:#1a73e8;">0</div></div>
+                    </div>
+                </div>
             </div>
+
             <div class="card chart-box">
                 <div class="chart-container"><canvas id="pieBudget"></canvas><div style="font-size:0.65rem; margin-top:6px; color:#888; font-weight:bold;">預估支出</div></div>
                 <div class="chart-container"><canvas id="pieActual"></canvas><div style="font-size:0.65rem; margin-top:6px; color:#888; font-weight:bold;">實際支出</div></div>
@@ -187,7 +198,7 @@
         };
 
         window.saveOrder = async (monthStr, m, t, list) => {
-            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
+            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
             await Promise.all(ps);
         };
 
@@ -258,9 +269,9 @@
             if(isEditing) return;
             try {
                 let estI = 0, estE = 0, actI = 0, actE = 0, pieBData = {}, pieAData = {};
-                
-                // ★★★ 終極防護罩：確保即使讀到沒有名字的假帳也不會當機 ★★★
                 const res = {}; members.forEach(m => res[m] = { 收入: {}, 支出: {} });
+                
+                // 當月數據統計
                 allData.filter(d => (d.date || '').startsWith(currentMonth)).forEach(d => {
                     const amt = Math.round(Number(d.amount)) || 0;
                     const mName = d.member || '未分類';
@@ -283,6 +294,25 @@
                 const curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
+                // ★★★ 財務看板：累計與時序隔離算法 ★★★
+                
+                // 1. 預計存款的累積 (加總所有歷史 <= currentMonth 的目標)
+                let accSave = 0;
+                for (let mKey in saveTargetMap) {
+                    if (mKey <= currentMonth) accSave += (Number(saveTargetMap[mKey]) || 0);
+                }
+
+                // 2. 累積餘額合計 (歷史總收入 - 歷史總支出 - 歷史總預計存款)
+                let accActI = 0, accActE = 0;
+                allData.forEach(d => {
+                    const mStr = (d.date || '').slice(0, 7);
+                    if (mStr && mStr <= currentMonth) { // 時序防護：絕不跨越未來
+                        const amt = Math.round(Number(d.amount)) || 0;
+                        if (d.type === '收入') accActI += amt;
+                        else accActE += amt;
+                    }
+                });
+                
                 const allMonthsSet = new Set();
                 allData.forEach(d => { const mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth) allMonthsSet.add(mStr); });
                 Object.values(allBudgets).forEach(b => { if(b.month && String(b.month) <= currentMonth) allMonthsSet.add(String(b.month)); });
@@ -291,7 +321,7 @@
 
                 let html = '';
                 members.forEach(m => {
-                    if (!res[m]) res[m] = { 收入: {}, 支出: {} }; // 雙重防護
+                    if (!res[m]) res[m] = { 收入: {}, 支出: {} };
                     let body = '';
                     ['收入','支出'].forEach(type => {
                         let sE = 0, sA = 0;
@@ -344,11 +374,14 @@
                     });
                     html += `<div class="card"><div class="card-title">${m}</div>${body}</div>`;
                 });
-                document.getElementById('cardsContainer').innerHTML = html;
-                document.getElementById('estBal').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
-                document.getElementById('actBal').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
                 
-                // ★★★ 終極防護罩：確保歷史表格的資料即使壞掉也能正常顯示讓您刪除 ★★★
+                // ★★★ 更新拆分後的財務看板數字 ★★★
+                document.getElementById('accSaveEl').innerText = `NT$ ${accSave.toLocaleString()}`;
+                document.getElementById('accBalEl').innerText = `NT$ ${(accActI - accActE - accSave).toLocaleString()}`;
+                document.getElementById('curEstBalEl').innerText = `NT$ ${Math.round(estI - estE).toLocaleString()}`;
+                document.getElementById('curActBalEl').innerText = `NT$ ${Math.round(actI - actE - curS).toLocaleString()}`;
+
+                document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').startsWith(currentMonth)).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
                 if (pieB && pieA) {
