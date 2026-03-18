@@ -3,68 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 視覺磁吸完美版</title>
+    <title>請好好記帳 - 磁吸防護終極版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f6f8; margin: 0; padding: 10px; color: #333; }
-        .dashboard-container { width: 100%; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
-        
-        .top-bar { background: #34495e; color: white; padding: 12px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .top-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .month-nav { display: flex; align-items: center; gap: 6px; }
-        .nav-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 14px; border-radius: 8px; cursor: pointer; }
-        .month-select-style { padding: 6px; border-radius: 8px; border: none; font-size: 0.9rem; background: #fff; color: #333; font-weight: bold; }
-        .save-target-row { display: flex; align-items: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; gap: 10px; justify-content: center; }
-        .save-input { width: 100px; background: #fff; border: none; border-radius: 6px; padding: 6px 10px; font-weight: bold; text-align: right; color: #2c3e50; }
-
-        .card { background: #fff; border-radius: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 15px; display: flex; flex-direction: column; }
-        .card-title { font-size: 1rem; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #f0f2f5; padding-bottom: 8px; color: #1a73e8; }
-        
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-        .form-group { display: flex; flex-direction: column; gap: 4px; }
-        .form-group label { font-size: 0.75rem; font-weight: bold; color: #888; }
-        .form-group input, .form-group select { padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 1rem; }
-        .submit-btn { background: #1a73e8; color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; height: 55px; margin-top: 15px; font-size: 1.2rem; }
-
-        .middle-section { display: flex; flex-direction: column; gap: 15px; }
-        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed #eee; gap: 6px; }
-        .handle { color: #ddd; cursor: grab; padding: 0 6px; font-size: 1.2rem; flex-shrink: 0; }
-        
-        .name-col { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 4px; }
-        .name-row { display: flex; align-items: center; width: 100%; gap: 6px; }
-        .cat-name-input { border: none; background: transparent; font-weight: bold; font-size: 0.95rem; flex: 1; min-width: 40px; color: #444; outline: none; }
-        
-        .acc-toggle { font-size: 0.65rem; padding: 3px 6px; border-radius: 6px; cursor: pointer; border: 1px solid #ccc; white-space: nowrap; flex-shrink: 0; user-select: none; }
-        .acc-on { background: #e8f5e9; color: #27ae60; border-color: #27ae60; }
-        .acc-off { background: #f8f9fa; color: #aaa; border-color: #eee; }
-        .acc-badge { font-size: 0.7rem; color: #8e44ad; font-weight: bold; background: #f4e8f9; padding: 2px 6px; border-radius: 4px; align-self: flex-start; }
-        
-        .val-container { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
-        .input-box { width: 72px; border: 1px solid #e0e0e0; text-align: right; font-weight: bold; border-radius: 8px; padding: 8px 4px; font-size: 0.85rem; }
-        .budget-warning { color: #e74c3c !important; background: #fff5f5 !important; }
-        .budget-safe { color: #27ae60 !important; background: #fafffa !important; }
-        .actual-input { background: #f8f9fa; color: #333; }
-        .item-del-btn { color: #e74c3c; cursor: pointer; font-size: 1.4rem; padding-left: 6px; font-weight: bold; flex-shrink: 0; }
-
-        .subtotal-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; font-size: 0.8rem; color: #666; background: #fcfcfc; font-weight: bold; border-top: 1px solid #eee; }
-        
-        .inline-add-area { background: #f8f9fa; padding: 10px; border-radius: 12px; margin-top: 10px; border: 1px solid #f0f0f0; width: 100%; }
-        .inline-add-box { display: flex; gap: 6px; width: 100%; align-items: center; }
-        .inline-add-name { flex: 2; min-width: 0; border: 1px solid #ddd !important; padding: 10px !important; border-radius: 10px !important; background: #fff !important; font-size: 0.9rem !important; }
-        .inline-add-amt { flex: 1; min-width: 0; border: 1px solid #ddd !important; padding: 10px !important; border-radius: 10px !important; text-align: right; background: #fff !important; font-size: 0.9rem !important; }
-        .inline-add-btn { background: #1a73e8; border: none; border-radius: 10px; width: 45px; height: 45px; color: white; cursor: pointer; font-weight: bold; font-size: 1.5rem; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-
-        .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: stretch; }
-        .chart-box { display: flex; flex-direction: row; justify-content: space-around; align-items: center; padding: 15px 10px; gap: 5px; }
-        .chart-container { flex: 1; max-width: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .chart-container canvas { width: 100% !important; height: auto !important; }
-
-        .history-table { width:100%; border-collapse:collapse; font-size:0.85rem; }
-        .history-date-input { border: none; background: transparent; width: 115px; font-family: inherit; font-size: 0.9rem; color: #666; }
-        @media (max-width: 600px) { .summary-grid { grid-template-columns: 1fr; } .input-box { width: 66px; } }
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{font-family:'PingFang TC','Microsoft JhengHei',sans-serif;background:#f4f6f8;margin:0;padding:10px;color:#333}
+        .dashboard-container{width:100%;max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+        .top-bar{background:#34495e;color:#fff;padding:12px;border-radius:12px;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;z-index:1000;box-shadow:0 4px 10px rgba(0,0,0,0.1)}
+        .top-row{display:flex;justify-content:space-between;align-items:center;width:100%}
+        .month-nav{display:flex;align-items:center;gap:6px}
+        .nav-btn{background:rgba(255,255,255,0.2);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer}
+        .month-select-style{padding:6px;border-radius:8px;border:none;font-size:0.9rem;background:#fff;color:#333;font-weight:bold}
+        .save-target-row{display:flex;align-items:center;background:rgba(0,0,0,0.2);padding:10px;border-radius:10px;gap:10px;justify-content:center}
+        .save-input{width:100px;background:#fff;border:none;border-radius:6px;padding:6px 10px;font-weight:bold;text-align:right;color:#2c3e50}
+        .card{background:#fff;border-radius:15px;box-shadow:0 2px 10px rgba(0,0,0,0.05);padding:15px;display:flex;flex-direction:column}
+        .card-title{font-size:1rem;font-weight:bold;margin-bottom:10px;border-bottom:2px solid #f0f2f5;padding-bottom:8px;color:#1a73e8}
+        .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+        .form-group{display:flex;flex-direction:column;gap:4px}
+        .form-group label{font-size:0.75rem;font-weight:bold;color:#888}
+        .form-group input,.form-group select{padding:12px;border:1px solid #ddd;border-radius:10px;font-size:1rem}
+        .submit-btn{background:#1a73e8;color:#fff;border:none;border-radius:12px;cursor:pointer;font-weight:bold;height:55px;margin-top:15px;font-size:1.2rem}
+        .middle-section{display:flex;flex-direction:column;gap:15px}
+        .item-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px dashed #eee;gap:6px}
+        .handle{color:#ddd;cursor:grab;padding:0 6px;font-size:1.2rem;flex-shrink:0}
+        .name-col{display:flex;flex-direction:column;flex:1;min-width:0;gap:4px}
+        .name-row{display:flex;align-items:center;width:100%;gap:6px}
+        .cat-name-input{border:none;background:transparent;font-weight:bold;font-size:0.95rem;flex:1;min-width:40px;color:#444;outline:none}
+        .acc-toggle{font-size:0.65rem;padding:3px 6px;border-radius:6px;cursor:pointer;border:1px solid #ccc;white-space:nowrap;flex-shrink:0;user-select:none}
+        .acc-on{background:#e8f5e9;color:#27ae60;border-color:#27ae60}
+        .acc-off{background:#f8f9fa;color:#aaa;border-color:#eee}
+        .acc-badge{font-size:0.7rem;color:#8e44ad;font-weight:bold;background:#f4e8f9;padding:2px 6px;border-radius:4px;align-self:flex-start}
+        .val-container{display:flex;gap:4px;align-items:center;flex-shrink:0}
+        .input-box{width:72px;border:1px solid #e0e0e0;text-align:right;font-weight:bold;border-radius:8px;padding:8px 4px;font-size:0.85rem}
+        .budget-warning{color:#e74c3c!important;background:#fff5f5!important}
+        .budget-safe{color:#27ae60!important;background:#fafffa!important}
+        .actual-input{background:#f8f9fa;color:#333}
+        .item-del-btn{color:#e74c3c;cursor:pointer;font-size:1.4rem;padding-left:6px;font-weight:bold;flex-shrink:0}
+        .subtotal-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;font-size:0.8rem;color:#666;background:#fcfcfc;font-weight:bold;border-top:1px solid #eee}
+        .inline-add-area{background:#f8f9fa;padding:10px;border-radius:12px;margin-top:10px;border:1px solid #f0f0f0;width:100%}
+        .inline-add-box{display:flex;gap:6px;width:100%;align-items:center}
+        .inline-add-name{flex:2;min-width:0;border:1px solid #ddd!important;padding:10px!important;border-radius:10px!important;background:#fff!important;font-size:0.9rem!important}
+        .inline-add-amt{flex:1;min-width:0;border:1px solid #ddd!important;padding:10px!important;border-radius:10px!important;text-align:right;background:#fff!important;font-size:0.9rem!important}
+        .inline-add-btn{background:#1a73e8;border:none;border-radius:10px;width:45px;height:45px;color:#fff;cursor:pointer;font-weight:bold;font-size:1.5rem;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+        .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:stretch}
+        .chart-box{display:flex;flex-direction:row;justify-content:space-around;align-items:center;padding:15px 10px;gap:5px}
+        .chart-container{flex:1;max-width:140px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+        .chart-container canvas{width:100%!important;height:auto!important}
+        .history-table{width:100%;border-collapse:collapse;font-size:0.85rem}
+        .history-date-input{border:none;background:transparent;width:115px;font-family:inherit;font-size:0.9rem;color:#666}
+        @media(max-width:600px){.summary-grid{grid-template-columns:1fr}.input-box{width:66px}}
     </style>
+    <script>
+        // 全域黑盒子防護：萬一整份腳本掛掉，直接印出紅字報錯，不再全白！
+        window.onerror = function(msg, url, lineNo) {
+            document.body.innerHTML += '<div style="background:red;color:white;padding:15px;margin:10px;border-radius:8px;font-weight:bold;z-index:9999;position:relative;">系統崩潰防護啟動：<br>' + msg + '<br>行號：' + lineNo + '<br>請確認是否複製代碼時少複製了底部！</div>';
+            return false;
+        };
+    </script>
 </head>
 <body>
     <div class="dashboard-container">
@@ -139,11 +135,11 @@
         const db = getFirestore(app);
         
         const getSafeMonth = () => {
-            try { return localStorage.getItem('ff_current_month'); } 
+            try { return window.localStorage ? window.localStorage.getItem('ff_current_month') : null; } 
             catch(e) { return null; } 
         };
         const setSafeMonth = (val) => {
-            try { localStorage.setItem('ff_current_month', val); } 
+            try { if(window.localStorage) window.localStorage.setItem('ff_current_month', val); } 
             catch(e) {} 
         };
 
@@ -156,6 +152,7 @@
         const defMap = { '王得賢': { 收入: ['薪資','股票'], 支出: ['貸款','信用卡','加油費'] }, '蔡書瑜': { 收入: ['薪資'], 支出: ['信用卡','加油費'] }, '王婕恩': { 支出: ['學費'] }, '王予陽': { 支出: ['學費'] }, '共同支出': { 收入: ['獎金'], 支出: ['房租','水電瓦斯'] } };
 
         const initCharts = () => {
+            if (typeof Chart === 'undefined') return; 
             const opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true, aspectRatio: 1, layout: { padding: 0 } };
             const elB = document.getElementById('pieBudget');
             const elA = document.getElementById('pieActual');
@@ -255,7 +252,7 @@
         };
 
         const setup = () => {
-            initCharts();
+            try { initCharts(); } catch(e) { console.error(e); }
             onSnapshot(query(collection(db, "budgets")), (snap) => { allBudgets = {}; snap.forEach(d => allBudgets[d.id] = d.data()); if(!isEditing) render(); updateCategoryDropdown(); });
             onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snap) => { allData = []; snap.forEach(d => allData.push({ id: d.id, ...d.data() })); updateMonthSelector(); if(!isEditing) render(); });
             onSnapshot(query(collection(db, "settings")), (snap) => { saveTargetMap = {}; snap.forEach(d => { if(d.id.includes('_save')) saveTargetMap[d.data().month] = d.data().target; }); if(!isEditing) render(); });
@@ -378,7 +375,6 @@
                                     pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
                                     
                                     const defMapType = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
-                                    
                                     if (lSnap && !lSnap.isDeleted) {
                                         accTotal += Number(lSnap.amount) || 0;
                                     } else if (!lSnap && defMapType.indexOf(cat) !== -1) {
@@ -424,48 +420,32 @@
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
-                // ★★★ 圓餅圖磁吸排序與顏色擴充字典 ★★★
+                // ★★★ 圖表磁吸聚合算法 ★★★
                 if (pieB && pieA) {
                     var getCategoryColor = function(catName) {
-                        var name = (catName || '').toLowerCase(); // 轉小寫支援 FB, Google 等
-                        
-                        // 🟢 交通車輛 (綠色系)
-                        if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('停車') !== -1 || name.indexOf('保養') !== -1 || name.indexOf('罰單') !== -1) return '#2ecc71'; 
-                        // 🔵 數位居住通訊 (藍色系)
-                        if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1 || name.indexOf('fb') !== -1 || name.indexOf('google') !== -1 || name.indexOf('軟體') !== -1 || name.indexOf('導演') !== -1 || name.indexOf('電話') !== -1) return '#3498db'; 
-                        // 🟣 教育與個人娛樂 (紫色系)
-                        if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1 || name.indexOf('娛樂') !== -1 || name.indexOf('影音') !== -1) return '#9b59b6'; 
-                        // 🟠 飲食與購物配件 (橘色系)
-                        if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('買') !== -1 || name.indexOf('衣') !== -1 || name.indexOf('錶') !== -1 || name.indexOf('樂') !== -1 || name.indexOf('寵物') !== -1 || name.indexOf('雜支') !== -1) return '#f39c12'; 
-                        // 🔴 金融醫療與保險 (紅色系)
-                        if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保險') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1 || name.indexOf('稅') !== -1 || name.indexOf('息') !== -1) return '#e74c3c'; 
-                        
-                        return '#bdc3c7'; // 預設灰色
+                        var n = String(catName || '').toLowerCase();
+                        if (n.indexOf('車')>-1||n.indexOf('油')>-1||n.indexOf('交通')>-1||n.indexOf('保養')>-1||n.indexOf('停車')>-1||n.indexOf('罰單')>-1||n.indexOf('過路')>-1) return '#2ecc71'; 
+                        if (n.indexOf('房')>-1||n.indexOf('水')>-1||n.indexOf('電')>-1||n.indexOf('網')>-1||n.indexOf('fb')>-1||n.indexOf('google')>-1||n.indexOf('軟體')>-1||n.indexOf('導演')>-1||n.indexOf('通訊')>-1||n.indexOf('手機')>-1) return '#3498db'; 
+                        if (n.indexOf('學')>-1||n.indexOf('書')>-1||n.indexOf('課')>-1||n.indexOf('娛樂')>-1||n.indexOf('遊戲')>-1||n.indexOf('影音')>-1||n.indexOf('玩具')>-1||n.indexOf('訂閱')>-1) return '#9b59b6'; 
+                        if (n.indexOf('吃')>-1||n.indexOf('餐')>-1||n.indexOf('食')>-1||n.indexOf('買')>-1||n.indexOf('衣')>-1||n.indexOf('錶')>-1||n.indexOf('寵物')>-1||n.indexOf('雜支')>-1||n.indexOf('生活')>-1||n.indexOf('樂')>-1) return '#f39c12'; 
+                        if (n.indexOf('卡')>-1||n.indexOf('貸')>-1||n.indexOf('保險')>-1||n.indexOf('醫')>-1||n.indexOf('藥')>-1||n.indexOf('稅')>-1||n.indexOf('息')>-1) return '#e74c3c'; 
+                        return '#bdc3c7'; 
                     };
 
-                    // 磁吸排序算法：同色系排一起，同色系內按金額從大到小排
-                    var sortLabelsByColor = function(labelsObj) {
-                        var labels = Object.keys(labelsObj);
-                        return labels.sort(function(a, b) {
-                            var cA = getCategoryColor(a);
-                            var cB = getCategoryColor(b);
-                            if (cA < cB) return -1;
-                            if (cA > cB) return 1;
-                            return labelsObj[b] - labelsObj[a]; 
+                    var sortAndApplyChart = function(pieObj, dataObj) {
+                        var labels = Object.keys(dataObj).sort(function(a,b) {
+                            var cA = getCategoryColor(a), cB = getCategoryColor(b);
+                            if(cA !== cB) return cA.localeCompare(cB); 
+                            return dataObj[b] - dataObj[a]; 
                         });
+                        pieObj.data.labels = labels;
+                        pieObj.data.datasets[0].data = labels.map(function(k) { return dataObj[k]; });
+                        pieObj.data.datasets[0].backgroundColor = labels.map(function(k) { return getCategoryColor(k); });
+                        pieObj.update();
                     };
 
-                    var labelsB = sortLabelsByColor(pieBData);
-                    pieB.data.labels = labelsB;
-                    pieB.data.datasets[0].data = labelsB.map(function(k) { return pieBData[k]; });
-                    pieB.data.datasets[0].backgroundColor = labelsB.map(function(cat) { return getCategoryColor(cat); });
-                    pieB.update();
-
-                    var labelsA = sortLabelsByColor(pieAData);
-                    pieA.data.labels = labelsA;
-                    pieA.data.datasets[0].data = labelsA.map(function(k) { return pieAData[k]; });
-                    pieA.data.datasets[0].backgroundColor = labelsA.map(function(cat) { return getCategoryColor(cat); });
-                    pieA.update();
+                    sortAndApplyChart(pieB, pieBData);
+                    sortAndApplyChart(pieA, pieAData);
                 }
 
                 members.forEach(m => ['收入','支出'].forEach(t => { 
@@ -482,7 +462,7 @@
                 }));
             } catch (e) {
                 console.error("渲染出錯了！", e);
-                document.getElementById('cardsContainer').innerHTML = `<div class="card" style="border:2px solid red; color:red; text-align:center;"><h3>系統畫圖失敗</h3><p>瀏覽器不支援：${e.message}</p><p>請截圖此畫面給工程師！</p></div>`;
+                document.getElementById('cardsContainer').innerHTML = '<div class="card" style="border:2px solid red; color:red; text-align:center;"><h3>系統畫圖失敗</h3><p>瀏覽器報錯：' + e.message + '</p><p>請截圖此畫面給工程師！</p></div>';
             }
         };
 
