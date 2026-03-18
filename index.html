@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 智能分色完美版</title>
+    <title>請好好記帳 - 視覺磁吸完美版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -210,7 +210,7 @@
         };
 
         window.saveOrder = async (monthStr, m, t, arrList) => {
-            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
+            const ps = arrList.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
             await Promise.all(ps);
         };
 
@@ -424,31 +424,44 @@
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(d => (d.date || '').indexOf(currentMonth) === 0).map(d => `<tr><td><input type="date" class="history-date-input" value="${d.date || ''}" onchange="saveDate('${d.id}', this.value)"></td><td style="font-weight:bold">${(d.member || '未知').substring(0,2)}</td><td>${d.category || '未分類'}</td><td style="text-align:right"><b>${Math.round(Number(d.amount)||0).toLocaleString()}</b></td><td><b onclick="delItem('${d.id}')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>`).join('');
                 
-                // ★★★ 圓餅圖自動分色字典 ★★★
+                // ★★★ 圓餅圖磁吸排序與顏色擴充字典 ★★★
                 if (pieB && pieA) {
                     var getCategoryColor = function(catName) {
-                        var name = catName || '';
-                        // 綠色系 (交通車輛)
-                        if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('停車') !== -1) return '#2ecc71'; 
-                        // 藍色系 (居住水電)
-                        if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1) return '#3498db'; 
-                        // 紫色系 (教育學習)
-                        if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1) return '#9b59b6'; 
-                        // 橘黃色系 (飲食生活)
-                        if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('寵物') !== -1) return '#f39c12'; 
-                        // 紅色系 (金融醫療)
-                        if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1) return '#e74c3c'; 
+                        var name = (catName || '').toLowerCase(); // 轉小寫支援 FB, Google 等
                         
-                        return '#bdc3c7'; // 其他預設為低調灰色
+                        // 🟢 交通車輛 (綠色系)
+                        if (name.indexOf('車') !== -1 || name.indexOf('油') !== -1 || name.indexOf('交通') !== -1 || name.indexOf('停車') !== -1 || name.indexOf('保養') !== -1 || name.indexOf('罰單') !== -1) return '#2ecc71'; 
+                        // 🔵 數位居住通訊 (藍色系)
+                        if (name.indexOf('房') !== -1 || name.indexOf('水') !== -1 || name.indexOf('電') !== -1 || name.indexOf('瓦斯') !== -1 || name.indexOf('網') !== -1 || name.indexOf('fb') !== -1 || name.indexOf('google') !== -1 || name.indexOf('軟體') !== -1 || name.indexOf('導演') !== -1 || name.indexOf('電話') !== -1) return '#3498db'; 
+                        // 🟣 教育與個人娛樂 (紫色系)
+                        if (name.indexOf('學') !== -1 || name.indexOf('書') !== -1 || name.indexOf('課') !== -1 || name.indexOf('娛樂') !== -1 || name.indexOf('影音') !== -1) return '#9b59b6'; 
+                        // 🟠 飲食與購物配件 (橘色系)
+                        if (name.indexOf('吃') !== -1 || name.indexOf('餐') !== -1 || name.indexOf('食') !== -1 || name.indexOf('買') !== -1 || name.indexOf('衣') !== -1 || name.indexOf('錶') !== -1 || name.indexOf('樂') !== -1 || name.indexOf('寵物') !== -1 || name.indexOf('雜支') !== -1) return '#f39c12'; 
+                        // 🔴 金融醫療與保險 (紅色系)
+                        if (name.indexOf('卡') !== -1 || name.indexOf('貸') !== -1 || name.indexOf('保險') !== -1 || name.indexOf('醫') !== -1 || name.indexOf('藥') !== -1 || name.indexOf('稅') !== -1 || name.indexOf('息') !== -1) return '#e74c3c'; 
+                        
+                        return '#bdc3c7'; // 預設灰色
                     };
 
-                    var labelsB = Object.keys(pieBData);
+                    // 磁吸排序算法：同色系排一起，同色系內按金額從大到小排
+                    var sortLabelsByColor = function(labelsObj) {
+                        var labels = Object.keys(labelsObj);
+                        return labels.sort(function(a, b) {
+                            var cA = getCategoryColor(a);
+                            var cB = getCategoryColor(b);
+                            if (cA < cB) return -1;
+                            if (cA > cB) return 1;
+                            return labelsObj[b] - labelsObj[a]; 
+                        });
+                    };
+
+                    var labelsB = sortLabelsByColor(pieBData);
                     pieB.data.labels = labelsB;
                     pieB.data.datasets[0].data = labelsB.map(function(k) { return pieBData[k]; });
                     pieB.data.datasets[0].backgroundColor = labelsB.map(function(cat) { return getCategoryColor(cat); });
                     pieB.update();
 
-                    var labelsA = Object.keys(pieAData);
+                    var labelsA = sortLabelsByColor(pieAData);
                     pieA.data.labels = labelsA;
                     pieA.data.datasets[0].data = labelsA.map(function(k) { return pieAData[k]; });
                     pieA.data.datasets[0].backgroundColor = labelsA.map(function(cat) { return getCategoryColor(cat); });
