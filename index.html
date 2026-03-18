@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 防禦解凍最終版</title>
+    <title>請好好記帳 - 最強相容解凍版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -138,14 +138,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // ★★★ 破除瀏覽器安全阻擋：安全讀取記憶 ★★★
         const getSafeMonth = () => {
             try { return localStorage.getItem('ff_current_month'); } 
-            catch(e) { return null; } // 瀏覽器若阻擋，直接微笑放棄
+            catch(e) { return null; } 
         };
         const setSafeMonth = (val) => {
             try { localStorage.setItem('ff_current_month', val); } 
-            catch(e) {} // 瀏覽器若阻擋，默默忽略，保證系統不當機
+            catch(e) {} 
         };
 
         let allData = [], allBudgets = {};
@@ -156,10 +155,14 @@
         const members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
         const defMap = { '王得賢': { 收入: ['薪資','股票'], 支出: ['貸款','信用卡','加油費'] }, '蔡書瑜': { 收入: ['薪資'], 支出: ['信用卡','加油費'] }, '王婕恩': { 支出: ['學費'] }, '王予陽': { 支出: ['學費'] }, '共同支出': { 收入: ['獎金'], 支出: ['房租','水電瓦斯'] } };
 
+        // ★★★ 拔除所有問號語法，改用傳統安全語法 ★★★
         const initCharts = () => {
             const opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true, aspectRatio: 1, layout: { padding: 0 } };
-            const ctxB = document.getElementById('pieBudget')?.getContext('2d');
-            const ctxA = document.getElementById('pieActual')?.getContext('2d');
+            const elB = document.getElementById('pieBudget');
+            const elA = document.getElementById('pieActual');
+            const ctxB = elB ? elB.getContext('2d') : null;
+            const ctxA = elA ? elA.getContext('2d') : null;
+            
             if(ctxB && ctxA) {
                 pieB = new Chart(ctxB, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#ff9f40','#1abc9c'] }] }, options: opt });
                 pieA = new Chart(ctxA, { type: 'pie', data: { labels: [], datasets: [{ data: [], backgroundColor: ['#3498db','#e74c3c','#f1c40f','#2ecc71','#9b59b6','#ff9f40','#1abc9c'] }] }, options: opt });
@@ -173,8 +176,11 @@
             const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === t && String(b.month || '') <= currentMonth);
             const latest = {};
             allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
-            const defaultCats = (defMap[m]?.[t] || []);
+            
+            // ★★★ 降級寫法 ★★★
+            const defaultCats = (defMap[m] && defMap[m][t]) ? defMap[m][t] : [];
             defaultCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, isDeleted: false }; });
+            
             const finalCats = Object.values(latest).filter(d => !d.isDeleted).map(d => d.category);
             document.getElementById('fCat').innerHTML = finalCats.map(c => `<option value="${c}">${c}</option>`).join('');
         };
@@ -206,7 +212,7 @@
         };
 
         window.saveOrder = async (monthStr, m, t, list) => {
-            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true });
+            const ps = list.map((cat, i) => setDoc(doc(db, "budgets", `${monthStr}_${m}_${cat}`), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }));
             await Promise.all(ps);
         };
 
@@ -223,7 +229,7 @@
         window.selectMonth = (val) => {
             isEditing = false;
             currentMonth = val;
-            setSafeMonth(currentMonth); // 使用防護版存檔
+            setSafeMonth(currentMonth); 
             window.syncDateInput();
             updateMonthSelector();
             render();
@@ -234,7 +240,7 @@
             let [y, m] = currentMonth.split('-').map(Number); 
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
             currentMonth = `${y}-${String(m).padStart(2,'0')}`; 
-            setSafeMonth(currentMonth); // 使用防護版存檔
+            setSafeMonth(currentMonth); 
             window.syncDateInput(); 
             updateMonthSelector(); 
             render(); 
@@ -333,10 +339,17 @@
                         const allPastDocs = Object.values(allBudgets).filter(b => b.member === m && b.type === type && String(b.month || '') <= currentMonth);
                         const latest = {};
                         allPastDocs.forEach(b => { if (!latest[b.category] || String(b.month || '') > String(latest[b.category].month || '')) { latest[b.category] = b; } });
-                        const defCats = defMap[m]?.[type] || [];
+                        
+                        // ★★★ 降級寫法 ★★★
+                        const defCats = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                         defCats.forEach(c => { if (!latest[c]) latest[c] = { category: c, amount: 0, order: 999, isDeleted: false, isAcc: false }; });
 
-                        const activeCats = Object.values(latest).filter(d => !d.isDeleted).sort((a,b) => (a.order ?? 999) - (b.order ?? 999));
+                        // ★★★ 降級排序寫法 ★★★
+                        const activeCats = Object.values(latest).filter(d => !d.isDeleted).sort((a,b) => {
+                            const orderA = a.order !== undefined ? a.order : 999;
+                            const orderB = b.order !== undefined ? b.order : 999;
+                            return orderA - orderB;
+                        });
                         
                         let items = '';
                         activeCats.forEach(docObj => {
@@ -352,9 +365,13 @@
                                     const pastForSm = Object.values(allBudgets).filter(b => b.member === m && b.type === type && b.category === cat && String(b.month) <= sm);
                                     let lSnap = null;
                                     pastForSm.forEach(b => { if (!lSnap || String(b.month) > String(lSnap.month)) lSnap = b; });
+                                    
+                                    // ★★★ 降級寫法 ★★★
+                                    const defMapType = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
+                                    
                                     if (lSnap && !lSnap.isDeleted) {
                                         accTotal += Number(lSnap.amount) || 0;
-                                    } else if (!lSnap && (defMap[m]?.[type] || []).includes(cat)) {
+                                    } else if (!lSnap && defMapType.includes(cat)) {
                                         accTotal += 0; 
                                     }
                                 });
