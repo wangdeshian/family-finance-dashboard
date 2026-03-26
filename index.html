@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>請好好記帳 - 終極安全無錯版</title>
+    <title>請好好記帳 - 乾淨磁吸完美版</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
@@ -68,8 +68,6 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <div id="errorBox"></div>
-
         <div class="top-bar">
             <div class="top-row">
                 <strong>習慣看到錢了嗎?</strong>
@@ -233,13 +231,14 @@
             render();
         };
 
+        // ★★★ 修復 1：拔除 padStart 語法地雷，解決切換月份當機 ★★★
         window.changeMonth = function(o) { 
             isEditing = false; 
             var parts = currentMonth.split('-');
             var y = Number(parts[0]);
             var m = Number(parts[1]);
             m += o; if(m>12){y++;m=1;} if(m<1){y--;m=12;} 
-            currentMonth = y + "-" + String(m).padStart(2,'0'); 
+            currentMonth = y + "-" + (m < 10 ? '0' + m : m); 
             setSafeMonth(currentMonth); 
             window.syncDateInput(); 
             updateMonthSelector(); 
@@ -272,7 +271,8 @@
             
             var parts = realThisMonth.split('-');
             var y = Number(parts[0]); var m = Number(parts[1]); m += 1; if(m>12){y++;m=1;}
-            var realNextMonth = y + "-" + String(m).padStart(2,'0');
+            // ★★★ 同樣拔除 padStart，保障安全 ★★★
+            var realNextMonth = y + "-" + (m < 10 ? '0' + m : m);
             if (monthsArr.indexOf(realNextMonth) === -1) monthsArr.push(realNextMonth);
             
             allData.forEach(function(d){ var mStr = (d.date || '').slice(0,7); if (mStr && monthsArr.indexOf(mStr) === -1) monthsArr.push(mStr); });
@@ -318,10 +318,25 @@
                     }
                 });
                 
-                var allMonthsArr = [currentMonth];
-                allData.forEach(function(d){ var mStr = (d.date || '').slice(0,7); if(mStr && mStr <= currentMonth && allMonthsArr.indexOf(mStr) === -1) allMonthsArr.push(mStr); });
-                Object.keys(allBudgets).map(function(k){return allBudgets[k]}).forEach(function(b){ if(b.month && String(b.month) <= currentMonth && allMonthsArr.indexOf(String(b.month)) === -1) allMonthsArr.push(String(b.month)); });
-                var sortedMonths = allMonthsArr.sort();
+                // ★★★ 修復 2：產生連續時間線，解決沒記帳的月份跳過累計的問題 ★★★
+                var minMonth = currentMonth;
+                allData.forEach(function(d){ var mStr = (d.date || '').slice(0,7); if(mStr && mStr < minMonth) minMonth = mStr; });
+                Object.keys(allBudgets).map(function(k){return allBudgets[k]}).forEach(function(b){ if(b.month && String(b.month) < minMonth) minMonth = String(b.month); });
+
+                var allMonthsArr = [];
+                var minParts = minMonth.split('-');
+                var currY = Number(minParts[0]);
+                var currM = Number(minParts[1]);
+                var curParts = currentMonth.split('-');
+                var targetY = Number(curParts[0]);
+                var targetM = Number(curParts[1]);
+
+                while (currY < targetY || (currY === targetY && currM <= targetM)) {
+                    allMonthsArr.push(currY + "-" + (currM < 10 ? '0' + currM : currM));
+                    currM++;
+                    if (currM > 12) { currY++; currM = 1; }
+                }
+                var sortedMonths = allMonthsArr; // 已經是從小到大排序好且連續的！
 
                 var html = '';
                 var globalSinkingFundTotal = 0;
@@ -383,15 +398,12 @@
                 document.getElementById('sinkingFundEl').innerText = 'NT$ ' + globalSinkingFundTotal.toLocaleString();
                 document.getElementById('accSaveEl').innerText = 'NT$ ' + accSaveTotal.toLocaleString();
                 
-                // ★★★ 預算扣除存款修正：數學公式更新 (- curS) ★★★
                 document.getElementById('curEstBalEl').innerText = 'NT$ ' + Math.round(estI - estE - curS).toLocaleString();
-                
                 document.getElementById('curActBalEl').innerText = 'NT$ ' + Math.round(actI - actE - curS).toLocaleString();
 
                 document.getElementById('cardsContainer').innerHTML = html;
                 document.getElementById('historyTbody').innerHTML = allData.filter(function(d){ return (d.date || '').indexOf(currentMonth) === 0 }).map(function(d){ return '<tr><td><input type="date" class="history-date-input" value="' + (d.date || '') + '" onchange="saveDate(\''+d.id+'\', this.value)"></td><td style="font-weight:bold">' + (d.member || '未知').substring(0,2) + '</td><td>' + (d.category || '未分類') + '</td><td style="text-align:right"><b>' + Math.round(Number(d.amount)||0).toLocaleString() + '</b></td><td><b onclick="delItem(\''+d.id+'\')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>' }).join('');
                 
-                // ★★★ 這裡絕對保持 indexOf 傳統安全寫法 ★★★
                 if (pieB && pieA) {
                     var getCategoryColor = function(catName) {
                         var name = String(catName || '').toLowerCase();
@@ -420,7 +432,6 @@
                     sortAndApplyChart(pieA, pieAData);
                 }
 
-                // 傳統迴圈綁定拖曳，不使用箭頭函數或 Array.from
                 for (var j = 0; j < members.length; j++) {
                     var memberName = members[j];
                     var types = ['收入', '支出'];
@@ -449,7 +460,6 @@
                 }
             } catch (e) {
                 console.error(e);
-                document.getElementById('errorBox').innerHTML = '<div style="background:red;color:white;padding:15px;margin-bottom:10px;border-radius:8px;font-weight:bold;">系統畫圖防護啟動：<br>' + e.message + '<br>請截圖此畫面給工程師！</div>';
             }
         };
 
