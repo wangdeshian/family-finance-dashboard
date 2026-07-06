@@ -153,72 +153,6 @@
         var members = ['共同支出','王得賢','蔡書瑜','王婕恩','王予陽'];
         var defMap = { '王得賢': { 收入: ['薪資','股票'], 支出: ['貸款','信用卡','加油費'] }, '蔡書瑜': { 收入: ['薪資'], 支出: ['信用卡','加油費'] }, '王婕恩': { 支出: ['學費'] }, '王予陽': { 支出: ['學費'] }, '共同支出': { 收入: ['獎金'], 支出: ['房租','水電瓦斯'] } };
 
-        var parseInputAmount = function(v) {
-            var raw = String(v === undefined || v === null ? '' : v).replace(/,/g, '').trim();
-            if (raw === '') return null;
-            var num = Number(raw);
-            return isFinite(num) ? Math.round(num) : null;
-        };
-
-        var parseStoredAmount = function(v) {
-            if (v === undefined || v === null || v === '') return null;
-            var num = Number(v);
-            return isFinite(num) ? Math.round(num) : null;
-        };
-
-        var findBudgetKey = function(monthStr, m, t, c) {
-            var legacyKey = monthStr + "_" + m + "_" + c;
-            var typedKey = monthStr + "_" + m + "_" + t + "_" + c;
-            if (allBudgets[typedKey] && allBudgets[typedKey].member === m && allBudgets[typedKey].type === t && allBudgets[typedKey].category === c) return typedKey;
-            if (allBudgets[legacyKey] && allBudgets[legacyKey].member === m && allBudgets[legacyKey].type === t && allBudgets[legacyKey].category === c) return legacyKey;
-            var keys = Object.keys(allBudgets);
-            for (var i = 0; i < keys.length; i++) {
-                var b = allBudgets[keys[i]];
-                if (String(b.month || '') === monthStr && b.member === m && b.type === t && b.category === c) return keys[i];
-            }
-            return typedKey;
-        };
-
-        var getLatestBudgetDoc = function(monthStr, m, t, c, opts) {
-            opts = opts || {};
-            var latest = null;
-            Object.keys(allBudgets).forEach(function(k){
-                var b = allBudgets[k];
-                if (b.member !== m || b.type !== t || b.category !== c || b.isDeleted) return;
-                if (String(b.month || '') > monthStr) return;
-                if (opts.requireAmount && parseStoredAmount(b.amount) === null) return;
-                if (opts.requireIsAcc && b.isAcc !== true && b.isAcc !== false) return;
-                if (opts.requireOrder && b.order === undefined) return;
-                if (!latest || String(b.month || '') > String(latest.data.month || '')) latest = { key: k, data: b };
-            });
-            return latest;
-        };
-
-        var buildBudgetPayload = function(monthStr, m, t, c) {
-            var payload = { month: monthStr, member: m, type: t, category: c, isDeleted: false };
-            var latestState = getLatestBudgetDoc(monthStr, m, t, c, { requireIsAcc: true });
-            var latestOrder = getLatestBudgetDoc(monthStr, m, t, c, { requireOrder: true });
-            var latestAmount = getLatestBudgetDoc(monthStr, m, t, c, { requireAmount: true });
-            if (latestState) payload.isAcc = latestState.data.isAcc;
-            if (latestOrder) payload.order = latestOrder.data.order;
-            if (latestAmount) payload.amount = parseStoredAmount(latestAmount.data.amount);
-            return payload;
-        };
-
-        var getBudgetAmountForRender = function(docObj, monthStr, m, t, c) {
-            var amount = parseStoredAmount(docObj.amount);
-            if (amount !== null) return amount;
-            var latest = getLatestBudgetDoc(monthStr, m, t, c, { requireAmount: true });
-            if (latest) return parseStoredAmount(latest.data.amount) || 0;
-            return 0;
-        };
-
-        var getBudgetIsAccForRender = function(docObj, monthStr, m, t, c) {
-            if (docObj.isAcc === true || docObj.isAcc === false) return docObj.isAcc === true;
-            var latest = getLatestBudgetDoc(monthStr, m, t, c, { requireIsAcc: true });
-            return latest ? latest.data.isAcc === true : false;
-        };
-
         var initCharts = function() {
             var opt = { plugins: { legend: { display: false } }, maintainAspectRatio: true, aspectRatio: 1, layout: { padding: 0 } };
             var elB = document.getElementById('pieBudget');
@@ -249,35 +183,25 @@
 
         window.deleteCategory = async function(monthStr, m, t, c) {
             if (!confirm("確定移除「" + c + "」？")) return;
-            await setDoc(doc(db, "budgets", findBudgetKey(monthStr, m, t, c)), { month: monthStr, member: m, type: t, category: c, amount: 0, isDeleted: true }, { merge: true });
+            await setDoc(doc(db, "budgets", monthStr + "_" + m + "_" + c), { month: monthStr, member: m, type: t, category: c, amount: 0, isDeleted: true }, { merge: true });
         };
 
         window.saveBudget = async function(monthStr, m, t, c, f, v) {
             isEditing = false;
-            var payload = buildBudgetPayload(monthStr, m, t, c);
-            if (f === 'amount') {
-                var num = parseInputAmount(v);
-                if (num === null) { render(); return; }
-                payload.amount = num;
-            } else {
-                var newName = String(v === undefined || v === null ? '' : v).trim();
-                if (!newName) { render(); return; }
-                payload.category = newName;
-            }
-            await setDoc(doc(db, "budgets", findBudgetKey(monthStr, m, t, c)), payload, { merge: true });
+            var num = Math.round(Number(v)) || 0;
+            var payload = { month: monthStr, member: m, type: t, category: c, isDeleted: false };
+            payload[f === 'amount' ? 'amount' : 'category'] = (f === 'amount' ? num : v);
+            await setDoc(doc(db, "budgets", monthStr + "_" + m + "_" + c), payload, { merge: true });
         };
 
         window.toggleAcc = async function(monthStr, m, t, c, isAccVal) {
             isEditing = false;
-            var payload = buildBudgetPayload(monthStr, m, t, c);
-            payload.isAcc = isAccVal === true;
-            await setDoc(doc(db, "budgets", findBudgetKey(monthStr, m, t, c)), payload, { merge: true });
+            await setDoc(doc(db, "budgets", monthStr + "_" + m + "_" + c), { month: monthStr, member: m, type: t, category: c, isAcc: isAccVal, isDeleted: false }, { merge: true });
         };
 
         window.saveActualDirect = async function(monthStr, m, t, c, v, cur) {
             isEditing = false;
-            var val = parseInputAmount(v);
-            if (val === null) { render(); return; }
+            var val = Math.round(Number(v)) || 0;
             if (val === cur) return;
             var targetDate = document.getElementById('fDate').value;
             if (targetDate.indexOf(monthStr) !== 0) targetDate = monthStr + "-01";
@@ -285,15 +209,11 @@
         };
 
         window.saveOrder = async function(monthStr, m, t, arrList) {
-            var ps = arrList.map(function(cat, i){
-                var payload = buildBudgetPayload(monthStr, m, t, cat);
-                payload.order = i;
-                return setDoc(doc(db, "budgets", findBudgetKey(monthStr, m, t, cat)), payload, { merge: true });
-            });
+            var ps = arrList.map(function(cat, i){ return setDoc(doc(db, "budgets", monthStr + "_" + m + "_" + cat), { month: monthStr, member: m, type: t, category: cat, order: i }, { merge: true }) });
             await Promise.all(ps);
         };
 
-        window.updateSaveTarget = async function(v) { isEditing = false; var num = parseInputAmount(v); if (num === null) { render(); return; } await setDoc(doc(db, "settings", currentMonth + "_save"), { month: currentMonth, target: num }, { merge: true }); };
+        window.updateSaveTarget = async function(v) { isEditing = false; await setDoc(doc(db, "settings", currentMonth + "_save"), { month: currentMonth, target: Number(v) || 0 }, { merge: true }); };
         window.saveDate = async function(id, d) { if (id && d) await updateDoc(doc(db, "expenses", id), { date: d }); };
         window.delItem = async function(id) { if(confirm("確定刪除這筆紀錄？")) await deleteDoc(doc(db, "expenses", id)); };
         
@@ -329,7 +249,7 @@
             var nameEl = document.getElementById("cAddCat-" + m + "-" + t);
             var amtEl = document.getElementById("cAddAmt-" + m + "-" + t);
             var name = nameEl.value.trim();
-            var amt = String(amtEl.value || '').trim() === '' ? '0' : amtEl.value;
+            var amt = amtEl.value || 0;
             if (!name) return;
             await window.saveBudget(monthStr, m, t, name, 'amount', amt);
             nameEl.value = ''; amtEl.value = '';
@@ -371,7 +291,7 @@
                 var res = {}; members.forEach(function(m){ res[m] = { 收入: {}, 支出: {} } });
                 
                 allData.filter(function(d){ return (d.date || '').indexOf(currentMonth) === 0 }).forEach(function(d){
-                    var amt = parseStoredAmount(d.amount) || 0;
+                    var amt = Math.round(Number(d.amount)) || 0;
                     var mName = d.member || '未分類', tName = d.type || '支出', cName = d.category || '未分類';
                     if (!res[mName]) res[mName] = { 收入: {}, 支出: {} };
                     if (!res[mName][tName]) res[mName][tName] = {};
@@ -383,17 +303,17 @@
                     }
                 });
 
-                var curS = parseStoredAmount(saveTargetMap[currentMonth]) || 0;
+                var curS = saveTargetMap[currentMonth] || 0;
                 document.getElementById('saveTargetInput').value = curS;
 
                 var accSaveTotal = 0;
-                for (var mKey in saveTargetMap) { if (mKey <= currentMonth) accSaveTotal += (parseStoredAmount(saveTargetMap[mKey]) || 0); }
+                for (var mKey in saveTargetMap) { if (mKey <= currentMonth) accSaveTotal += (Number(saveTargetMap[mKey]) || 0); }
 
                 var accActI = 0, accActE = 0;
                 allData.forEach(function(d){
                     var mStr = (d.date || '').slice(0, 7);
                     if (mStr && mStr <= currentMonth) { 
-                        var amt = parseStoredAmount(d.amount) || 0;
+                        var amt = Math.round(Number(d.amount)) || 0;
                         if (d.type === '收入') accActI += amt; else accActE += amt;
                     }
                 });
@@ -443,12 +363,10 @@
                         
                         var items = '';
                         activeCats.forEach(function(docObj){
-                            var cat = docObj.category || '未分類', aS = res[m][type][cat] || 0;
-                            var eS = getBudgetAmountForRender(docObj, currentMonth, m, type, cat);
-                            var isAcc = getBudgetIsAccForRender(docObj, currentMonth, m, type, cat);
+                            var cat = docObj.category || '未分類', aS = res[m][type][cat] || 0, eS = Number(docObj.amount) || 0, isAcc = docObj.isAcc === true;
                             var accTotal = 0;
                             if (isAcc) {
-                                allData.filter(function(d){ return d.member === m && d.type === type && d.category === cat && String(d.date || '').slice(0,7) <= currentMonth }).forEach(function(d){ accTotal -= parseStoredAmount(d.amount) || 0; });
+                                allData.filter(function(d){ return d.member === m && d.type === type && d.category === cat && String(d.date || '').slice(0,7) <= currentMonth }).forEach(function(d){ accTotal -= Number(d.amount) || 0; });
                                 sortedMonths.forEach(function(sm){
                                     var pastForSm = Object.keys(allBudgets).map(function(k){return allBudgets[k]}).filter(function(b){ return b.member === m && b.type === type && b.category === cat && String(b.month) <= sm });
                                     var lSnap = null;
@@ -456,7 +374,7 @@
                                     
                                     var defMapType = (defMap[m] && defMap[m][type]) ? defMap[m][type] : [];
                                     if (lSnap && !lSnap.isDeleted) {
-                                        accTotal += getBudgetAmountForRender(lSnap, sm, m, type, cat);
+                                        accTotal += Number(lSnap.amount) || 0;
                                     } else if (!lSnap && defMapType.indexOf(cat) !== -1) {
                                         accTotal += 0; 
                                     }
@@ -484,7 +402,7 @@
                 document.getElementById('curActBalEl').innerText = 'NT$ ' + Math.round(actI - actE - curS).toLocaleString();
 
                 document.getElementById('cardsContainer').innerHTML = html;
-                document.getElementById('historyTbody').innerHTML = allData.filter(function(d){ return (d.date || '').indexOf(currentMonth) === 0 }).map(function(d){ return '<tr><td><input type="date" class="history-date-input" value="' + (d.date || '') + '" onchange="saveDate(\''+d.id+'\', this.value)"></td><td style="font-weight:bold">' + (d.member || '未知').substring(0,2) + '</td><td>' + (d.category || '未分類') + '</td><td style="text-align:right"><b>' + (parseStoredAmount(d.amount) || 0).toLocaleString() + '</b></td><td><b onclick="delItem(\''+d.id+'\')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>' }).join('');
+                document.getElementById('historyTbody').innerHTML = allData.filter(function(d){ return (d.date || '').indexOf(currentMonth) === 0 }).map(function(d){ return '<tr><td><input type="date" class="history-date-input" value="' + (d.date || '') + '" onchange="saveDate(\''+d.id+'\', this.value)"></td><td style="font-weight:bold">' + (d.member || '未知').substring(0,2) + '</td><td>' + (d.category || '未分類') + '</td><td style="text-align:right"><b>' + Math.round(Number(d.amount)||0).toLocaleString() + '</b></td><td><b onclick="delItem(\''+d.id+'\')" style="cursor:pointer;color:#e74c3c;font-size:1.2rem;padding:0 5px;">×</b></td></tr>' }).join('');
                 
                 if (pieB && pieA) {
                     var getCategoryColor = function(catName) {
@@ -547,9 +465,7 @@
 
         document.getElementById('mainForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            var amount = parseInputAmount(document.getElementById('fAmt').value);
-            if (amount === null) { document.getElementById('fAmt').focus(); return; }
-            await addDoc(collection(db, "expenses"), { date: document.getElementById('fDate').value, type: document.getElementById('fType').value, member: document.getElementById('fMember').value, category: document.getElementById('fCat').value, amount: amount, timestamp: new Date() });
+            await addDoc(collection(db, "expenses"), { date: document.getElementById('fDate').value, type: document.getElementById('fType').value, member: document.getElementById('fMember').value, category: document.getElementById('fCat').value, amount: Math.round(Number(document.getElementById('fAmt').value)), timestamp: new Date() });
             document.getElementById('fAmt').value = '';
         });
         setup();
